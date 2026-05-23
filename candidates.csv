@@ -1,16 +1,16 @@
-Name,Counsellor
-Alice Vance,Marcus Vance
-Bob Miller,Sarah Jenkins
-Catherine de Medici,Thomas Wolsey
-David Hume,Adam Smith
-Elizabeth Bennet,Jane Austen
-Franklin Roosevelt,Winston Churchill
-George Washington,Alexander Hamilton
-Harriet Tubman,Frederick Douglass
-Isaac Newton,Robert Hooke
-Jane Eyre,Charlotte Bronte
-Katherine Johnson,Dorothy Vaughan
-Leonardo da Vinci,Lorenzo de' Medici
-Marie Curie,Pierre Curie
-Nikola Tesla,Thomas Edison
-Oscar Wilde,Robert Ross
+Name,Counsellor,Email
+Alice Vance,Marcus Vance,alice.vance@company.com
+Bob Miller,Sarah Jenkins,bob.miller@company.com
+Catherine de Medici,Thomas Wolsey,catherine.medici@company.com
+David Hume,Adam Smith,david.hume@company.com
+Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com
+Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com
+George Washington,Alexander Hamilton,george.washington@company.com
+Harriet Tubman,Frederick Douglass,harriet.tubman@company.com
+Isaac Newton,Robert Hooke,isaac.newton@company.com
+Jane Eyre,Charlotte Bronte,jane.eyre@company.com
+Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com
+Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com
+Marie Curie,Sarah Jenkins,marie.curie@company.com
+Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com
+Oscar Wilde,Adam Smith,oscar.wilde@company.com

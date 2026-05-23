@@ -1,3 +1,7 @@
+param(
+    [string]$Token
+)
+
 # PowerShell Script to generate the Ladderater Web Application
 # Run this on a standard Windows 11 machine without admin permissions:
 # powershell -ExecutionPolicy Bypass -File .\generate.ps1
@@ -7,23 +11,22 @@ $csvPath = Join-Path $PSScriptRoot "candidates.csv"
 # 1. Create a default candidates.csv if it does not exist
 if (-not (Test-Path $csvPath)) {
     $defaultCsv = @"
-Name,Counsellor
-Alice Vance,Marcus Vance
-Bob Miller,Sarah Jenkins
-Catherine de Medici,Thomas Wolsey
-David Hume,Adam Smith
-Elizabeth Bennet,Jane Austen
-Franklin Roosevelt,Winston Churchill
-George Washington,Alexander Hamilton
-Harriet Tubman,Frederick Douglass
-Isaac Newton,Robert Hooke
-Jane Eyre,Charlotte Bronte
-Jane Eyre,Charlotte Bronte
-Katherine Johnson,Dorothy Vaughan
-Leonardo da Vinci,Lorenzo de' Medici
-Marie Curie,Pierre Curie
-Nikola Tesla,Thomas Edison
-Oscar Wilde,Robert Ross
+Name,Counsellor,Email
+Alice Vance,Marcus Vance,alice.vance@company.com
+Bob Miller,Sarah Jenkins,bob.miller@company.com
+Catherine de Medici,Thomas Wolsey,catherine.medici@company.com
+David Hume,Adam Smith,david.hume@company.com
+Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com
+Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com
+George Washington,Alexander Hamilton,george.washington@company.com
+Harriet Tubman,Frederick Douglass,harriet.tubman@company.com
+Isaac Newton,Robert Hooke,isaac.newton@company.com
+Jane Eyre,Charlotte Bronte,jane.eyre@company.com
+Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com
+Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com
+Marie Curie,Sarah Jenkins,marie.curie@company.com
+Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com
+Oscar Wilde,Adam Smith,oscar.wilde@company.com
 "@
     # Set encoding to UTF8 so characters compile cleanly
     Set-Content -Path $csvPath -Value $defaultCsv -Encoding utf8
@@ -40,7 +43,65 @@ try {
     exit 1
 }
 
-# 3. Convert candidates to JSON string to inject into the HTML template
+# Ensure properties Email and Photo exist on all candidate objects
+foreach ($c in $candidates) {
+    if (-not ($c.psobject.Properties['Email'])) {
+        $c | Add-Member -MemberType NoteProperty -Name "Email" -Value $null
+    }
+    if (-not ($c.psobject.Properties['Photo'])) {
+        $c | Add-Member -MemberType NoteProperty -Name "Photo" -Value $null
+    }
+}
+
+# 3. Fetch profile photos from Entra ID (Microsoft Graph) if token is provided
+if ($Token) {
+    Write-Host ""
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host "Entra ID Integration Active: Fetching profile photos" -ForegroundColor Cyan
+    Write-Host "==================================================" -ForegroundColor Cyan
+    
+    $headers = @{
+        "Authorization" = "Bearer $Token"
+    }
+    
+    foreach ($c in $candidates) {
+        if ($c.Email) {
+            $email = $c.Email.Trim()
+            if ($email -ne "") {
+                Write-Host "Fetching photo for $($c.Name) ($email)..." -ForegroundColor Cyan
+                try {
+                    $photoUrl = "https://graph.microsoft.com/v1.0/users/$email/photo/`$value"
+                    $resp = Invoke-WebRequest -Uri $photoUrl -Headers $headers -Method Get -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+                    
+                    $contentType = $resp.Headers["Content-Type"]
+                    if (-not $contentType) { $contentType = "image/jpeg" }
+                    
+                    $base64 = [Convert]::ToBase64String($resp.Content)
+                    $c.Photo = "data:$contentType;base64,$base64"
+                    Write-Host "  Successfully retrieved photo." -ForegroundColor Green
+                } catch {
+                    $statusCode = $null
+                    if ($_.Exception -and $_.Exception.Response) {
+                        $statusCode = [int]$_.Exception.Response.StatusCode
+                    }
+                    if ($statusCode -eq 404) {
+                        Write-Host "  No photo found in Entra ID (404)." -ForegroundColor Gray
+                    } elseif ($statusCode -eq 401 -or $statusCode -eq 403) {
+                        Write-Host "  Authentication failed ($statusCode): Access token is invalid, expired, or lacks permission." -ForegroundColor Red
+                        Write-Host "  Aborting further Entra ID photo fetches." -ForegroundColor Red
+                        break
+                    } else {
+                        Write-Host "  Could not retrieve photo: $_" -ForegroundColor Yellow
+                    }
+                }
+            }
+        }
+    }
+    Write-Host "==================================================" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+# 4. Convert candidates to JSON string to inject into the HTML template
 $jsonCandidates = ConvertTo-Json @($candidates) -Compress
 
 # 4. Read config.json
@@ -813,6 +874,7 @@ $htmlTemplate = @'
             height: 38px;
             border-radius: 50%;
             flex-shrink: 0;
+            object-fit: cover;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
         }
 
@@ -965,21 +1027,21 @@ $htmlTemplate = @'
         .discuss-next-container {
             background: linear-gradient(135deg, #e0e7ff 0%, #f5f3ff 100%);
             border: 1px solid #c7d2fe;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.04);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08);
         }
         
         .discuss-next-title {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 800;
             color: #4f46e5;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 6px;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
         
         .discuss-next-title span {
@@ -993,27 +1055,35 @@ $htmlTemplate = @'
         
         .discuss-active-card {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 12px;
+            text-align: center;
+            gap: 16px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px 12px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border-radius: 12px;
+            padding: 24px 16px;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.05);
+        }
+
+        .discuss-active-card .candidate-avatar {
+            width: 72px;
+            height: 72px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
         }
         
         .discuss-active-actions {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            margin-top: 8px;
+            gap: 8px;
+            margin-top: 12px;
         }
         
         .discuss-btn {
             border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 6px;
-            font-size: 10px;
+            border-radius: 8px;
+            padding: 10px 8px;
+            font-size: 12px;
             font-weight: 700;
             cursor: pointer;
             font-family: 'Outfit', sans-serif;
@@ -1028,8 +1098,10 @@ $htmlTemplate = @'
         .discuss-skip-btn {
             grid-column: span 2;
             background: #f8fafc;
-            border-color: #e2e8f0;
+            border-color: #cbd5e1;
             color: var(--text-secondary);
+            padding: 10px;
+            font-size: 12px;
         }
         .discuss-skip-btn:hover {
             background: #e2e8f0;
@@ -1244,7 +1316,9 @@ $htmlTemplate = @'
             allCandidates = INITIAL_CANDIDATES.map((c, index) => ({
                 id: `cand-${index}`,
                 name: c.Name,
-                counsellor: c.Counsellor
+                counsellor: c.Counsellor,
+                email: c.Email || null,
+                photo: c.Photo || null
             }));
             
             state = loadState(allCandidates);
@@ -1264,7 +1338,7 @@ $htmlTemplate = @'
 
         // State Caching Hash incorporating candidates and band configurations
         function getCandidatesHash(candidates, config) {
-            let candStr = candidates.map(c => c.name + '|' + c.counsellor).sort().join(';');
+            let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
             let configStr = config.bands.map(b => `${b.id}:${b.hasLimit}:${b.defaultCapacity}`).join(';');
             let promoStr = `${config.enablePromotions || false}:${config.defaultExpectedSpaces || 3}:${config.maxExpectedSpaces || 10}`;
             let str = candStr + '||' + configStr + '||' + promoStr;
@@ -1324,6 +1398,14 @@ $htmlTemplate = @'
                 state: state
             };
             localStorage.setItem('ladderater_state', JSON.stringify(payload));
+        }
+
+        // Avatar Generator (Profile Photo or SVG Initials)
+        function getAvatarHtml(candidate, id) {
+            if (candidate && candidate.photo) {
+                return `<img src="${candidate.photo}" class="candidate-avatar" alt="${candidate.name || ''}" id="avatar-${id}" />`;
+            }
+            return getAvatarSvg(candidate ? candidate.name : '', id);
         }
 
         // SVG Avatar Generator
@@ -1846,7 +1928,7 @@ $htmlTemplate = @'
         }
 
         function renderCard(candidate, bandId, index) {
-            const avatar = getAvatarSvg(candidate.name, candidate.id);
+            const avatar = getAvatarHtml(candidate, candidate.id);
             const isStarred = state.starredCandidateIds.includes(candidate.id);
             let starredClass = isStarred ? 'starred' : '';
             if (isStarred && bandId === 'promotion-expected') {
@@ -2014,7 +2096,7 @@ $htmlTemplate = @'
                 return;
             }
             
-            const avatar = getAvatarSvg(currentCandidate.name, 'discuss-' + currentCandidate.id);
+            const avatar = getAvatarHtml(currentCandidate, 'discuss-' + currentCandidate.id);
             
             let actionButtonsHtml = '';
             CONFIG.bands.forEach(b => {
@@ -2033,9 +2115,10 @@ $htmlTemplate = @'
                 </div>
                 <div class="discuss-active-card">
                     ${avatar}
-                    <div class="candidate-details">
-                        <div class="candidate-name" style="font-size: 14px;">${escapeHtml(currentCandidate.name)}</div>
-                        <div class="candidate-counsellor" style="font-size: 11px;">Counsellor: ${escapeHtml(currentCandidate.counsellor)}</div>
+                    <div class="candidate-details" style="padding: 0; margin: 0; display: flex; flex-direction: column; align-items: center; width: 100%;">
+                        <div class="candidate-name" style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">${escapeHtml(currentCandidate.name)}</div>
+                        <div class="candidate-counsellor" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Counsellor: <strong>${escapeHtml(currentCandidate.counsellor)}</strong></div>
+                        ${currentCandidate.email ? `<div class="candidate-email" style="font-size: 12px; color: var(--text-muted); font-family: monospace; word-break: break-all;">${escapeHtml(currentCandidate.email)}</div>` : ''}
                     </div>
                 </div>
                 <div class="discuss-active-actions">
