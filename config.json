@@ -1,6 +1,9 @@
 {
   "title": "LADDERATER",
   "subtitle": "Calibration Session",
+  "enablePromotions": true,
+  "defaultExpectedSpaces": 3,
+  "maxExpectedSpaces": 10,
   "bands": [
     {
       "id": "top-talent",

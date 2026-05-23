@@ -50,6 +50,9 @@ if (-not (Test-Path $configPath)) {
 {
   "title": "LADDERATER",
   "subtitle": "Calibration Session",
+  "enablePromotions": true,
+  "defaultExpectedSpaces": 3,
+  "maxExpectedSpaces": 10,
   "bands": [
     {
       "id": "top-talent",
@@ -241,6 +244,44 @@ $htmlTemplate = @'
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
             70% { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        /* View Switcher segment control */
+        .view-switcher {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+        .switcher-btn {
+            background: none;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s ease;
+        }
+        .switcher-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke-width: 2.5;
+        }
+        .switcher-btn.active {
+            background: #ffffff;
+            color: #4f46e5;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .switcher-btn:hover:not(.active) {
+            background: rgba(0, 0, 0, 0.03);
+            color: var(--text-primary);
         }
 
         .header-stats {
@@ -735,6 +776,25 @@ $htmlTemplate = @'
             transform: scale(0.98);
         }
 
+        /* Starred Card styling */
+        .candidate-card.starred {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.05);
+        }
+        
+        .candidate-card.promo-expected {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+            box-shadow: 0 2px 4px rgba(245, 158, 11, 0.05);
+        }
+
+        .candidate-card.promo-potential {
+            border-color: #94a3b8;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            box-shadow: 0 2px 4px rgba(148, 163, 184, 0.05);
+        }
+
         /* Vector initals avatar */
         .candidate-avatar {
             width: 38px;
@@ -749,6 +809,8 @@ $htmlTemplate = @'
             flex-direction: column;
             min-width: 0;
             flex-grow: 1;
+            padding-right: 12px;
+            margin-right: 16px;
         }
         
         .candidate-name {
@@ -767,6 +829,30 @@ $htmlTemplate = @'
             overflow: hidden;
             text-overflow: ellipsis;
             margin-top: 1px;
+        }
+
+        /* Card Actions panel in Card */
+        .card-star-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: transform 0.1s ease;
+        }
+        .card-star-btn:hover {
+            transform: scale(1.2);
+        }
+        .card-star-btn svg {
+            width: 14px;
+            height: 14px;
         }
 
         /* Card remove button */
@@ -1007,6 +1093,23 @@ $htmlTemplate = @'
                 <span class="status-badge" id="app-status-badge"><span class="pulse-dot"></span>Appraisal Panel Active</span>
             </div>
             
+            <!-- View Switcher (Only if enabled in config) -->
+            <div class="view-switcher" id="view-switcher" style="display: none;">
+                <button class="switcher-btn active" id="btn-view-performance" onclick="switchView('performance')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="9" y1="3" x2="9" y2="21"></line>
+                    </svg>
+                    Performance Board
+                </button>
+                <button class="switcher-btn" id="btn-view-promotion" onclick="switchView('promotion')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Promotion Calibration
+                </button>
+            </div>
+            
             <div class="header-stats" id="header-stats">
                 <!-- Updated dynamically -->
             </div>
@@ -1028,25 +1131,7 @@ $htmlTemplate = @'
             <!-- Left Sidebar: Configurations and stats -->
             <aside class="sidebar-left" id="sidebar-left">
                 <div class="sidebar-left-scroll">
-                    <div class="sidebar-section">
-                        <div class="sidebar-section-header">
-                            <h3>Band Allocations</h3>
-                            <button class="btn-close-sidebar" onclick="toggleSidebar()" title="Hide panel">
-                                <!-- Double chevron left SVG -->
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
-                            </button>
-                        </div>
-                        <div id="band-allocations-container">
-                            <!-- Dynamic config rows go here -->
-                        </div>
-                    </div>
-                    
-                    <div class="sidebar-section">
-                        <h3>Counsellor Breakdown</h3>
-                        <div class="counsellor-list" id="counsellor-breakdown">
-                            <!-- Instantiated Dynamically -->
-                        </div>
-                    </div>
+                    <!-- Skeletons rendered dynamically -->
                 </div>
                 <footer class="sidebar-footer">
                     Ladderater &copy; 2026 Charles Dickinson.<br>Licensed under the MIT License.
@@ -1064,30 +1149,7 @@ $htmlTemplate = @'
                    ondragenter="handleDragEnter(event, this)" 
                    ondragleave="handleDragLeave(event, this)" 
                    ondrop="handleDropUnranked(event)">
-                
-                <div class="sidebar-header-right">
-                    <h2>Unranked Candidates</h2>
-                    
-                    <!-- Discuss Next Panel -->
-                    <div class="discuss-next-container" id="discuss-next-container">
-                        <!-- Active discussion candidate -->
-                    </div>
-                    
-                    <!-- Search -->
-                    <div class="search-box-wrapper">
-                        <!-- Inline search SVG -->
-                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" id="search-input" placeholder="Search candidates or counsellors..." oninput="handleSearch()">
-                    </div>
-                </div>
-                
-                <!-- Unranked Scroll List -->
-                <div class="unranked-list-scroll" id="unranked-list">
-                    <!-- Unranked candidates list -->
-                </div>
+                <!-- Skeleton rendered dynamically -->
             </aside>
             
         </div>
@@ -1101,6 +1163,7 @@ $htmlTemplate = @'
         let allCandidates = [];
         let state = {};
         let draggedCandidateId = null;
+        let currentView = 'performance';
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
@@ -1153,6 +1216,11 @@ $htmlTemplate = @'
             statusBadge.innerHTML = `<span class="pulse-dot"></span>${CONFIG.subtitle || 'Appraisal Panel Active'}`;
             document.title = `${CONFIG.title || 'Ladderater'} - Calibration Panel`;
 
+            // Enable view switcher if promotions are enabled
+            if (CONFIG.enablePromotions) {
+                document.getElementById('view-switcher').style.display = 'flex';
+            }
+
             allCandidates = INITIAL_CANDIDATES.map((c, index) => ({
                 id: `cand-${index}`,
                 name: c.Name,
@@ -1161,9 +1229,10 @@ $htmlTemplate = @'
             
             state = loadState(allCandidates);
             
-            // Render layouts dynamically
-            renderBandAllocationsConfig();
+            // Render skeletons
+            renderLeftSidebarSkeleton();
             renderBoardSkeleton();
+            renderRightSidebarSkeleton();
             
             // Restore sidebar collapsed state
             if (localStorage.getItem('ladderater_sidebar_collapsed') === 'true') {
@@ -1177,7 +1246,8 @@ $htmlTemplate = @'
         function getCandidatesHash(candidates, config) {
             let candStr = candidates.map(c => c.name + '|' + c.counsellor).sort().join(';');
             let configStr = config.bands.map(b => `${b.id}:${b.hasLimit}:${b.defaultCapacity}`).join(';');
-            let str = candStr + '||' + configStr;
+            let promoStr = `${config.enablePromotions || false}:${config.defaultExpectedSpaces || 3}:${config.maxExpectedSpaces || 10}`;
+            let str = candStr + '||' + configStr + '||' + promoStr;
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
                 hash = (hash << 5) - hash + str.charCodeAt(i);
@@ -1193,6 +1263,11 @@ $htmlTemplate = @'
                 try {
                     const parsed = JSON.parse(saved);
                     if (parsed.hash === currentHash) {
+                        // Ensure all structures are backwards-compatible
+                        if (!parsed.state.starredCandidateIds) parsed.state.starredCandidateIds = [];
+                        if (!parsed.state.promotionLadderExpected) parsed.state.promotionLadderExpected = [];
+                        if (!parsed.state.promotionLadderPotential) parsed.state.promotionLadderPotential = [];
+                        if (parsed.state.promotionCapacityExpected === undefined) parsed.state.promotionCapacityExpected = (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3);
                         return parsed.state;
                     }
                 } catch (e) {
@@ -1215,7 +1290,11 @@ $htmlTemplate = @'
                 unranked: sortedList,
                 bands: bandsState,
                 capacities: capacities,
-                discussingCandidateId: sortedList.length > 0 ? sortedList[0].id : null
+                discussingCandidateId: sortedList.length > 0 ? sortedList[0].id : null,
+                starredCandidateIds: [],
+                promotionLadderExpected: [],
+                promotionLadderPotential: [],
+                promotionCapacityExpected: (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3)
             };
         }
 
@@ -1268,6 +1347,21 @@ $htmlTemplate = @'
             `;
         }
 
+        // View Switching
+        function switchView(viewName) {
+            if (!CONFIG.enablePromotions) return;
+            currentView = viewName;
+            
+            document.getElementById('btn-view-performance').classList.toggle('active', viewName === 'performance');
+            document.getElementById('btn-view-promotion').classList.toggle('active', viewName === 'promotion');
+            
+            renderLeftSidebarSkeleton();
+            renderBoardSkeleton();
+            renderRightSidebarSkeleton();
+            
+            renderApp();
+        }
+
         // Drag & Drop Handlers
         function handleDragStart(e, candidateId) {
             draggedCandidateId = candidateId;
@@ -1291,7 +1385,6 @@ $htmlTemplate = @'
             });
         }
 
-        // Drag handlers
         function handleDragOver(e) {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -1319,11 +1412,20 @@ $htmlTemplate = @'
             const candidateId = e.dataTransfer.getData('text/plain') || draggedCandidateId;
             if (!candidateId) return;
             
-            unrankCandidate(candidateId);
+            if (currentView === 'promotion') {
+                unrankCandidatePromotion(candidateId);
+            } else {
+                unrankCandidate(candidateId);
+            }
         }
 
         // Core Calibration Operations
         function moveCandidate(candidateId, targetBandId, targetIndex) {
+            if (targetBandId === 'promotion-expected' || targetBandId === 'promotion-potential') {
+                moveCandidatePromotion(candidateId, targetBandId, targetIndex);
+                return;
+            }
+            
             if (!targetBandId) {
                 unrankCandidate(candidateId);
                 return;
@@ -1423,7 +1525,7 @@ $htmlTemplate = @'
         }
 
         function resetBoard() {
-            if (!confirm("Are you sure you want to reset all appraisal rankings? This will return all candidates to the Unranked Pool.")) return;
+            if (!confirm("Are you sure you want to reset all rankings? This will return all candidates to their default starting states.")) return;
             
             const all = [];
             state.unranked.forEach(c => all.push(c));
@@ -1435,6 +1537,11 @@ $htmlTemplate = @'
             // Re-sort alphabetically
             state.unranked = all.sort((a, b) => a.name.localeCompare(b.name));
             state.discussingCandidateId = state.unranked.length > 0 ? state.unranked[0].id : null;
+            
+            // Reset promotion structures
+            state.starredCandidateIds = [];
+            state.promotionLadderExpected = [];
+            state.promotionLadderPotential = [];
             
             saveState();
             renderApp();
@@ -1479,10 +1586,62 @@ $htmlTemplate = @'
         }
 
         function handleSearch() {
-            renderUnrankedList();
+            if (currentView === 'performance') {
+                renderUnrankedList();
+            } else {
+                renderCandidatePool();
+            }
         }
 
-        // Dynamic Layout Renderers
+        // Dynamic Layout Skeletal Renderers
+        function renderLeftSidebarSkeleton() {
+            const scrollContainer = document.querySelector('.sidebar-left-scroll');
+            
+            if (currentView === 'performance') {
+                scrollContainer.innerHTML = `
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header">
+                            <h3>Band Allocations</h3>
+                            <button class="btn-close-sidebar" onclick="toggleSidebar()" title="Hide panel">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+                            </button>
+                        </div>
+                        <div id="band-allocations-container"></div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h3>Counsellor Breakdown</h3>
+                        <div class="counsellor-list" id="counsellor-breakdown"></div>
+                    </div>
+                `;
+                renderBandAllocationsConfig();
+            } else {
+                scrollContainer.innerHTML = `
+                    <div class="sidebar-section">
+                        <div class="sidebar-section-header">
+                            <h3>Promotion Config</h3>
+                            <button class="btn-close-sidebar" onclick="toggleSidebar()" title="Hide panel">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
+                            </button>
+                        </div>
+                        <div class="config-row">
+                            <label for="input-promotion-expected-slots">Expected Spaces:</label>
+                            <div class="input-number-wrapper">
+                                <button onclick="changePromotionCapacity('expected', -1)">-</button>
+                                <input type="number" id="input-promotion-expected-slots" min="0" max="${CONFIG.maxExpectedSpaces || 10}" value="${state.promotionCapacityExpected}" readonly>
+                                <button onclick="changePromotionCapacity('expected', 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="sidebar-section">
+                        <h3>Counsellor Promo Stats</h3>
+                        <div class="counsellor-list" id="counsellor-breakdown"></div>
+                    </div>
+                `;
+            }
+        }
+
         function renderBandAllocationsConfig() {
             const container = document.getElementById('band-allocations-container');
             let html = '';
@@ -1507,63 +1666,210 @@ $htmlTemplate = @'
             const container = document.getElementById('board-container');
             let html = '';
             
-            CONFIG.bands.forEach((b, idx) => {
-                const badgeNum = idx + 1;
-                const counterId = `count-${b.id}`;
-                const slotsId = `slots-${b.id}`;
+            if (currentView === 'performance') {
+                CONFIG.bands.forEach((b, idx) => {
+                    const badgeNum = idx + 1;
+                    const counterId = `count-${b.id}`;
+                    const slotsId = `slots-${b.id}`;
+                    
+                    html += `
+                        <section class="band-section band-${b.id}" data-band-id="${b.id}">
+                            <div class="band-info">
+                                <div>
+                                    <div class="band-header">
+                                        <span class="band-badge badge-${b.id}">${badgeNum}</span>
+                                        <h2>${escapeHtml(b.name)}</h2>
+                                    </div>
+                                    <p class="band-desc">${escapeHtml(b.description)}</p>
+                                </div>
+                                <div class="band-counter">
+                                    ${b.hasLimit ? 'Slots' : 'Ranked'}: <span class="band-counter-val" id="${counterId}">0</span>
+                                </div>
+                            </div>
+                            <div class="${b.hasLimit ? 'band-slots' : 'band-slots-unlimited'}" id="${slotsId}">
+                                <!-- Slots injected dynamically -->
+                            </div>
+                        </section>
+                    `;
+                });
+            } else {
+                const showExpected = (state.promotionCapacityExpected > 0);
+                if (showExpected) {
+                    html += `
+                        <section class="band-section band-promotion-expected" data-band-id="promotion-expected" style="border-color: #f59e0b; background-color: #fffbeb;">
+                            <div class="band-info" style="border-right-color: #fef08a;">
+                                <div>
+                                    <div class="band-header">
+                                        <span class="band-badge badge-promotion-expected" style="background: #eab308; color: #ffffff;">&#9733;</span>
+                                        <h2>Expected Promotions</h2>
+                                    </div>
+                                    <p class="band-desc">Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.</p>
+                                </div>
+                                <div class="band-counter">
+                                    Allocated: <span class="band-counter-val" id="count-promotion-expected" style="background: #fef08a; border-color: #f59e0b;">0 / 3</span>
+                                </div>
+                            </div>
+                            <div class="band-slots" id="slots-promotion-expected">
+                                <!-- Slots injected dynamically -->
+                            </div>
+                        </section>
+                    `;
+                }
+
+                const potStyle = showExpected 
+                    ? 'border-color: #94a3b8; background-color: #f8fafc;' 
+                    : 'border-color: #f59e0b; background-color: #fffbeb;';
+                const potBadgeStyle = showExpected 
+                    ? 'background: #94a3b8; color: #ffffff;' 
+                    : 'background: #eab308; color: #ffffff;';
+                const potBadgeIcon = showExpected ? '&#9734;' : '&#9733;';
+                const potBorderRightColor = showExpected ? '#e2e8f0' : '#fef08a';
+                const potCounterBackground = showExpected ? '#e2e8f0; border-color: #94a3b8;' : '#fef08a; border-color: #f59e0b;';
                 
+                const potDesc = showExpected 
+                    ? 'Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.' 
+                    : 'Candidates recommended for potential promotion space (uncapped). Expected promotions row is currently disabled.';
+
                 html += `
-                    <section class="band-section band-${b.id}" data-band-id="${b.id}">
-                        <div class="band-info">
+                    <section class="band-section band-promotion-potential" data-band-id="promotion-potential" style="${potStyle}">
+                        <div class="band-info" style="border-right-color: ${potBorderRightColor};">
                             <div>
                                 <div class="band-header">
-                                    <span class="band-badge badge-${b.id}">${badgeNum}</span>
-                                    <h2>${escapeHtml(b.name)}</h2>
+                                    <span class="band-badge badge-promotion-potential" style="${potBadgeStyle}">${potBadgeIcon}</span>
+                                    <h2>Potential Promotions</h2>
                                 </div>
-                                <p class="band-desc">${escapeHtml(b.description)}</p>
+                                <p class="band-desc">${potDesc}</p>
                             </div>
                             <div class="band-counter">
-                                ${b.hasLimit ? 'Slots' : 'Ranked'}: <span class="band-counter-val" id="${counterId}">0</span>
+                                Allocated: <span class="band-counter-val" id="count-promotion-potential" style="background: ${potCounterBackground}">0</span>
                             </div>
                         </div>
-                        <div class="${b.hasLimit ? 'band-slots' : 'band-slots-unlimited'}" id="${slotsId}">
+                        <div class="band-slots-unlimited" id="slots-promotion-potential">
                             <!-- Slots injected dynamically -->
                         </div>
                     </section>
                 `;
-            });
+            }
             
             container.innerHTML = html;
         }
 
+        function renderRightSidebarSkeleton() {
+            const sidebar = document.querySelector('.sidebar-right');
+            
+            if (currentView === 'performance') {
+                sidebar.innerHTML = `
+                    <div class="sidebar-header-right">
+                        <h2>Unranked Candidates</h2>
+                        <div class="discuss-next-container" id="discuss-next-container"></div>
+                        <div class="search-box-wrapper">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="search-input" placeholder="Search candidates or counsellors..." oninput="handleSearch()">
+                        </div>
+                    </div>
+                    <div class="unranked-list-scroll" id="unranked-list"></div>
+                `;
+            } else {
+                const showAutoFill = (state.promotionCapacityExpected > 0);
+                const gridCols = showAutoFill ? '1fr 1fr' : '1fr';
+                const autoFillBtn = showAutoFill ? `<button class="discuss-btn" onclick="autoFillPromotion()" title="Auto-fill empty Expected slots with top-performing candidates" style="border-color: #ca8a04; color: #ca8a04; background: #ffffff;">Auto-Fill</button>` : '';
+                
+                sidebar.innerHTML = `
+                    <div class="sidebar-header-right">
+                        <h2>Candidate Pool</h2>
+                        
+                        <!-- Quick Promo Actions -->
+                        <div class="discuss-next-container" style="background: linear-gradient(135deg, #fef08a 0%, #fffbeb 100%); border-color: #fef08a; box-shadow: none;">
+                            <div class="discuss-next-title" style="color: #ca8a04;">
+                                <span></span>Promotion Actions
+                            </div>
+                            <div class="discuss-active-actions" style="grid-template-columns: ${gridCols};">
+                                ${autoFillBtn}
+                                <button class="discuss-btn" onclick="clearPromotionLadder()" title="Remove all candidates from promotion" style="border-color: #ef4444; color: #ef4444; background: #ffffff; ${!showAutoFill ? 'grid-column: span 1;' : ''}">Clear Ladder</button>
+                            </div>
+                        </div>
+                        
+                        <div class="search-box-wrapper">
+                            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="search-input" placeholder="Search available candidates..." oninput="handleSearch()">
+                        </div>
+                    </div>
+                    <div class="unranked-list-scroll" id="unranked-list"></div>
+                `;
+            }
+        }
+
         // Render Functions
         function renderApp() {
-            CONFIG.bands.forEach(b => {
-                if (b.hasLimit) {
-                    renderLimitedBand(b.id);
-                } else {
-                    renderUnlimitedBand(b.id);
-                }
-            });
-            renderUnrankedList();
-            renderDiscussNext();
+            if (currentView === 'performance') {
+                CONFIG.bands.forEach(b => {
+                    if (b.hasLimit) {
+                        renderLimitedBand(b.id);
+                    } else {
+                        renderUnlimitedBand(b.id);
+                    }
+                });
+                renderUnrankedList();
+                renderDiscussNext();
+            } else {
+                renderPromotionLadder();
+                renderCandidatePool();
+            }
             renderCounsellorBreakdown();
             renderHeaderStats();
         }
 
         function renderCard(candidate, bandId, index) {
             const avatar = getAvatarSvg(candidate.name, candidate.id);
-            const unrankBtn = !bandId ? '' : `
-                <button class="card-unrank-btn" onclick="event.stopPropagation(); unrankCandidate('${candidate.id}')" title="Return to Unranked">
+            const isStarred = state.starredCandidateIds.includes(candidate.id);
+            let starredClass = isStarred ? 'starred' : '';
+            if (isStarred && bandId === 'promotion-expected') {
+                starredClass = 'starred promo-expected';
+            } else if (isStarred && bandId === 'promotion-potential') {
+                starredClass = (state.promotionCapacityExpected === 0) ? 'starred promo-expected' : 'starred promo-potential';
+            }
+            
+            // Build star button (only if enabled)
+            let starBtn = '';
+            if (CONFIG.enablePromotions) {
+                const starSvg = isStarred ? `
+                    <svg viewBox="0 0 24 24" fill="#eab308" stroke="#d97706" stroke-width="2" class="star-icon">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                ` : `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" class="star-icon">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                `;
+                starBtn = `
+                    <button class="card-star-btn ${isStarred ? 'starred' : ''}" onclick="event.stopPropagation(); toggleStar('${candidate.id}', event)" title="${isStarred ? 'Remove from promotion consideration' : 'Consider for promotion'}">
+                        ${starSvg}
+                    </button>
+                `;
+            }
+
+            const isPromotionView = (currentView === 'promotion');
+            const showUnrank = isPromotionView ? (bandId === 'promotion-expected' || bandId === 'promotion-potential') : !!bandId;
+            const clickUnrank = isPromotionView ? `unrankCandidatePromotion('${candidate.id}')` : `unrankCandidate('${candidate.id}')`;
+            
+            const unrankBtn = !showUnrank ? '' : `
+                <button class="card-unrank-btn" onclick="event.stopPropagation(); ${clickUnrank}" title="Remove from ladder">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             `;
             
-            const isActiveDiscuss = (!bandId && state.discussingCandidateId === candidate.id) ? 'active-discussion' : '';
-            const clickAction = !bandId ? `onclick="setDiscussingCandidate('${candidate.id}')"` : '';
+            const isActiveDiscuss = (!isPromotionView && !bandId && state.discussingCandidateId === candidate.id) ? 'active-discussion' : '';
+            const clickAction = (!isPromotionView && !bandId) ? `onclick="setDiscussingCandidate('${candidate.id}')"` : '';
+            const dropTargetBand = isPromotionView ? (bandId || '') : (bandId || '');
             
             return `
-                <div class="candidate-card ${isActiveDiscuss}" 
+                <div class="candidate-card ${starredClass} ${isActiveDiscuss}" 
                      id="${candidate.id}" 
                      draggable="true" 
                      ondragstart="handleDragStart(event, '${candidate.id}')" 
@@ -1571,7 +1877,7 @@ $htmlTemplate = @'
                      ondragover="handleDragOver(event)"
                      ondragenter="handleDragEnter(event, this)"
                      ondragleave="handleDragLeave(event, this)"
-                     ondrop="handleDrop(event, '${bandId || ''}', ${index})"
+                     ondrop="handleDrop(event, '${dropTargetBand}', ${index})"
                      ${clickAction}>
                     ${avatar}
                     <div class="candidate-details">
@@ -1580,6 +1886,7 @@ $htmlTemplate = @'
                             Counsellor: ${escapeHtml(candidate.counsellor)}
                         </div>
                     </div>
+                    ${starBtn}
                     ${unrankBtn}
                 </div>
             `;
@@ -1726,24 +2033,333 @@ $htmlTemplate = @'
             });
         }
 
+        // Star toggling and pool sync
+        function toggleStar(candidateId, event) {
+            if (event) event.stopPropagation();
+            
+            const index = state.starredCandidateIds.indexOf(candidateId);
+            const candidate = allCandidates.find(c => c.id === candidateId);
+            if (!candidate) return;
+            
+            const expectedCap = state.promotionCapacityExpected;
+
+            if (index !== -1) {
+                // Unstar (remove star)
+                state.starredCandidateIds.splice(index, 1);
+                
+                // Remove from promotionLadderExpected if present
+                const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
+                if (expIdx !== -1) {
+                    state.promotionLadderExpected.splice(expIdx, 1);
+                } else {
+                    // Remove from promotionLadderPotential if present
+                    const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
+                    if (potIdx !== -1) {
+                        state.promotionLadderPotential.splice(potIdx, 1);
+                    }
+                }
+                // Cascade to fill the Expected gaps from Potential
+                cascadeOverflowPromotion();
+            } else {
+                // Star
+                state.starredCandidateIds.push(candidateId);
+                
+                const newGrade = getPerformanceGrade(candidate);
+                
+                // Insert into Expected?
+                if (state.promotionLadderExpected.length < expectedCap) {
+                    let insertIdx = state.promotionLadderExpected.findIndex(c => newGrade < getPerformanceGrade(c));
+                    if (insertIdx === -1) insertIdx = state.promotionLadderExpected.length;
+                    state.promotionLadderExpected.splice(insertIdx, 0, candidate);
+                } else {
+                    // Expected is full (or capacity is 0), so it goes straight to Potential (uncapped)
+                    let insertIdx = state.promotionLadderPotential.findIndex(c => newGrade < getPerformanceGrade(c));
+                    if (insertIdx === -1) insertIdx = state.promotionLadderPotential.length;
+                    state.promotionLadderPotential.splice(insertIdx, 0, candidate);
+                }
+                
+                // Cascade in case Expected overflow is needed
+                cascadeOverflowPromotion();
+            }
+            
+            saveState();
+            renderApp();
+        }
+
+        // Promotion view renderers
+        function renderPromotionLadder() {
+            // Render Expected (if capacity > 0)
+            const expCapacity = state.promotionCapacityExpected;
+            const expContainer = document.getElementById('slots-promotion-expected');
+            const showExpected = (expCapacity > 0);
+            
+            if (expContainer) {
+                if (showExpected) {
+                    let html = '';
+                    for (let i = 0; i < expCapacity; i++) {
+                        if (i < state.promotionLadderExpected.length) {
+                            html += renderCard(state.promotionLadderExpected[i], 'promotion-expected', i);
+                        } else {
+                            html += `
+                                <div class="slot-box" 
+                                     style="border-color: #fcd34d; background-color: #fffbeb;"
+                                     ondragover="handleDragOver(event)" 
+                                     ondragenter="handleDragEnter(event, this)"
+                                     ondragleave="handleDragLeave(event, this)"
+                                     ondrop="handleDrop(event, 'promotion-expected', ${i})">
+                                    <span class="slot-rank-indicator" style="color: #ca8a04;">#${i + 1}</span>
+                                    Drop to Rank
+                                </div>
+                            `;
+                        }
+                    }
+                    expContainer.innerHTML = html;
+                    document.getElementById('count-promotion-expected').innerText = `${state.promotionLadderExpected.length} / ${expCapacity}`;
+                } else {
+                    expContainer.innerHTML = '';
+                }
+            }
+
+            // Render Potential (uncapped list style)
+            const potContainer = document.getElementById('slots-promotion-potential');
+            if (potContainer) {
+                let html = '';
+                state.promotionLadderPotential.forEach((candidate, idx) => {
+                    html += renderCard(candidate, 'promotion-potential', idx);
+                });
+                
+                const boxBorderColor = showExpected ? '#cbd5e1' : '#fcd34d';
+                const boxBgColor = showExpected ? '#f8fafc' : '#fffbeb';
+                const textCol = showExpected ? '#64748b' : '#ca8a04';
+                
+                // Append trailing plus-slot dropzone
+                html += `
+                    <div class="plus-slot" 
+                         style="border-color: ${boxBorderColor}; background-color: ${boxBgColor}; color: ${textCol};"
+                         ondragover="handleDragOver(event)" 
+                         ondragenter="handleDragEnter(event, this)"
+                         ondragleave="handleDragLeave(event, this)"
+                         ondrop="handleDrop(event, 'promotion-potential', ${state.promotionLadderPotential.length})">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: ${textCol};">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Drop to Add (#${state.promotionLadderPotential.length + 1})
+                    </div>
+                `;
+                potContainer.innerHTML = html;
+                document.getElementById('count-promotion-potential').innerText = `${state.promotionLadderPotential.length}`;
+            }
+        }
+
+        function renderCandidatePool() {
+            const container = document.getElementById('unranked-list');
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            
+            // Get all candidates that are NOT starred (not in state.starredCandidateIds)
+            const available = allCandidates.filter(c => !state.starredCandidateIds.includes(c.id));
+            
+            // Sort available candidates alphabetically by name for easy searching
+            available.sort((a, b) => a.name.localeCompare(b.name));
+            
+            const filtered = available.filter(c => 
+                c.name.toLowerCase().includes(searchVal) || 
+                c.counsellor.toLowerCase().includes(searchVal)
+            );
+            
+            if (filtered.length === 0) {
+                if (available.length === 0) {
+                    container.innerHTML = `<div class="empty-state">All candidates are starred/promoted!</div>`;
+                } else {
+                    container.innerHTML = `<div class="empty-state">No candidates match search criteria</div>`;
+                }
+                return;
+            }
+            
+            let html = '';
+            filtered.forEach(candidate => {
+                html += renderCard(candidate, null, -1);
+            });
+            container.innerHTML = html;
+        }
+
+        // Helper to sort candidates based on performance band and rank
+        function getPerformanceGrade(candidate) {
+            if (!candidate) return 999999;
+            for (let bandIdx = 0; bandIdx < CONFIG.bands.length; bandIdx++) {
+                const bandId = CONFIG.bands[bandIdx].id;
+                const candIdx = state.bands[bandId].findIndex(c => c.id === candidate.id);
+                if (candIdx !== -1) {
+                    return bandIdx * 1000 + candIdx;
+                }
+            }
+            return 999999;
+        }
+
+        // Promotion Board specific state adjusters
+        function changePromotionCapacity(type, delta) {
+            if (type === 'expected') {
+                const maxCap = CONFIG.maxExpectedSpaces || 10;
+                const newVal = state.promotionCapacityExpected + delta;
+                if (newVal < 0 || newVal > maxCap) return;
+                
+                state.promotionCapacityExpected = newVal;
+                const inputEl = document.getElementById('input-promotion-expected-slots');
+                if (inputEl) inputEl.value = newVal;
+                
+                // Re-render skeletons to hide/show Expected row or update styles
+                renderBoardSkeleton();
+                renderRightSidebarSkeleton();
+            }
+            
+            cascadeOverflowPromotion();
+            saveState();
+            renderApp();
+        }
+
+        function cascadeOverflowPromotion() {
+            const expectedCap = state.promotionCapacityExpected;
+
+            // 1. Downward cascade: Expected -> Potential
+            while (state.promotionLadderExpected.length > expectedCap) {
+                const popped = state.promotionLadderExpected.pop();
+                state.promotionLadderPotential.unshift(popped);
+            }
+
+            // 2. Upward cascade: Potential -> Expected
+            while (state.promotionLadderExpected.length < expectedCap && state.promotionLadderPotential.length > 0) {
+                const pulled = state.promotionLadderPotential.shift();
+                state.promotionLadderExpected.push(pulled);
+            }
+        }
+
+        function moveCandidatePromotion(candidateId, targetBandId, targetIndex) {
+            let candidate = null;
+            
+            const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
+            if (expIdx !== -1) {
+                candidate = state.promotionLadderExpected.splice(expIdx, 1)[0];
+            } else {
+                const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
+                if (potIdx !== -1) {
+                    candidate = state.promotionLadderPotential.splice(potIdx, 1)[0];
+                } else {
+                    // Dragged from Candidate Pool (not starred yet)
+                    candidate = allCandidates.find(c => c.id === candidateId);
+                    if (candidate && !state.starredCandidateIds.includes(candidateId)) {
+                        state.starredCandidateIds.push(candidateId);
+                    }
+                }
+            }
+            
+            if (!candidate) return;
+            
+            if (targetBandId === 'promotion-expected') {
+                let actualIndex = targetIndex;
+                if (actualIndex > state.promotionLadderExpected.length || actualIndex === -1) {
+                    actualIndex = state.promotionLadderExpected.length;
+                }
+                state.promotionLadderExpected.splice(actualIndex, 0, candidate);
+            } else if (targetBandId === 'promotion-potential') {
+                let actualIndex = targetIndex;
+                if (actualIndex > state.promotionLadderPotential.length || actualIndex === -1) {
+                    actualIndex = state.promotionLadderPotential.length;
+                }
+                state.promotionLadderPotential.splice(actualIndex, 0, candidate);
+            }
+            
+            cascadeOverflowPromotion();
+            
+            saveState();
+            renderApp();
+        }
+
+        function unrankCandidatePromotion(candidateId) {
+            const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
+            if (expIdx !== -1) {
+                state.promotionLadderExpected.splice(expIdx, 1);
+            } else {
+                const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
+                if (potIdx !== -1) {
+                    state.promotionLadderPotential.splice(potIdx, 1);
+                }
+            }
+            
+            // Remove star
+            const idx = state.starredCandidateIds.indexOf(candidateId);
+            if (idx !== -1) {
+                state.starredCandidateIds.splice(idx, 1);
+            }
+            
+            cascadeOverflowPromotion();
+            saveState();
+            renderApp();
+        }
+
+        function autoFillPromotion() {
+            const expectedCap = state.promotionCapacityExpected;
+            if (expectedCap <= 0) return;
+            
+            // Get unstarred candidates
+            const available = allCandidates.filter(c => !state.starredCandidateIds.includes(c.id));
+            available.sort((a, b) => getPerformanceGrade(a) - getPerformanceGrade(b));
+            
+            while (state.promotionLadderExpected.length < expectedCap && available.length > 0) {
+                const candidate = available.shift();
+                state.starredCandidateIds.push(candidate.id);
+                state.promotionLadderExpected.push(candidate);
+            }
+            
+            state.promotionLadderExpected.sort((a, b) => getPerformanceGrade(a) - getPerformanceGrade(b));
+            saveState();
+            renderApp();
+        }
+
+        function clearPromotionLadder() {
+            if (state.promotionLadderExpected.length === 0 && state.promotionLadderPotential.length === 0) return;
+            if (!confirm("Are you sure you want to clear the promotion ladders? Candidates will lose their starred promotion status.")) return;
+            
+            state.promotionLadderExpected = [];
+            state.promotionLadderPotential = [];
+            state.starredCandidateIds = [];
+            
+            saveState();
+            renderApp();
+        }
+
         function renderCounsellorBreakdown() {
             const container = document.getElementById('counsellor-breakdown');
             const counts = {};
             
-            function addCount(counsellor, band) {
-                if (!counsellor) return;
+            function getCounsellorBucket(counsellor) {
                 if (!counts[counsellor]) {
-                    counts[counsellor] = { unranked: 0 };
+                    counts[counsellor] = { 
+                        performance: {}, 
+                        unranked: 0,
+                        expected: 0,
+                        potential: 0
+                    };
                     CONFIG.bands.forEach(b => {
-                        counts[counsellor][b.id] = 0;
+                        counts[counsellor].performance[b.id] = 0;
                     });
                 }
-                counts[counsellor][band]++;
+                return counts[counsellor];
             }
             
-            state.unranked.forEach(c => addCount(c.counsellor, 'unranked'));
+            state.unranked.forEach(c => {
+                getCounsellorBucket(c.counsellor).unranked++;
+            });
             CONFIG.bands.forEach(b => {
-                state.bands[b.id].forEach(c => addCount(c.counsellor, b.id));
+                state.bands[b.id].forEach(c => {
+                    getCounsellorBucket(c.counsellor).performance[b.id]++;
+                });
+            });
+            
+            state.promotionLadderExpected.forEach(c => {
+                getCounsellorBucket(c.counsellor).expected++;
+            });
+            state.promotionLadderPotential.forEach(c => {
+                getCounsellorBucket(c.counsellor).potential++;
             });
             
             const sortedCounsellors = Object.keys(counts).sort();
@@ -1756,38 +2372,81 @@ $htmlTemplate = @'
             let html = '';
             sortedCounsellors.forEach(counsellor => {
                 const data = counts[counsellor];
-                let bandPills = '';
-                CONFIG.bands.forEach(b => {
-                    if (data[b.id] > 0) {
-                        bandPills += `<span class="counsellor-pill pill-${b.id}" title="${escapeHtml(b.name)}: ${data[b.id]}">${data[b.id]} ${escapeHtml(b.shortName || b.name)}</span> `;
-                    }
-                });
                 
-                const remainingText = data.unranked > 0 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 3px; font-weight: 500;">${data.unranked} remaining unranked</div>` : '';
-                
-                html += `
-                    <div class="counsellor-stat-item">
-                        <div class="counsellor-name">${escapeHtml(counsellor)}</div>
-                        <div class="counsellor-bands">
-                            ${bandPills || '<span style="font-size:10px; color:var(--text-muted); font-weight: 500;">None ranked</span>'}
+                if (currentView === 'performance') {
+                    let bandPills = '';
+                    CONFIG.bands.forEach(b => {
+                        const count = data.performance[b.id];
+                        if (count > 0) {
+                            bandPills += `<span class="counsellor-pill pill-${b.id}" title="${escapeHtml(b.name)}: ${count}">${count} ${escapeHtml(b.shortName || b.name)}</span> `;
+                        }
+                    });
+                    
+                    const remainingText = data.unranked > 0 ? `<div style="font-size: 10px; color: var(--text-muted); margin-top: 3px; font-weight: 500;">${data.unranked} remaining unranked</div>` : '';
+                    
+                    html += `
+                        <div class="counsellor-stat-item">
+                            <div class="counsellor-name">${escapeHtml(counsellor)}</div>
+                            <div class="counsellor-bands">
+                                ${bandPills || '<span style="font-size:10px; color:var(--text-muted); font-weight: 500;">None ranked</span>'}
+                            </div>
+                            ${remainingText}
                         </div>
-                        ${remainingText}
-                    </div>
-                `;
+                    `;
+                } else {
+                    let pills = '';
+                    const showExpected = (state.promotionCapacityExpected > 0);
+                    if (data.expected > 0 && showExpected) {
+                        pills += `<span class="counsellor-pill" style="background-color: #ca8a04; color: #ffffff;" title="Expected Promotions: ${data.expected}">${data.expected} Expected</span> `;
+                    }
+                    if (data.potential > 0) {
+                        const potColor = showExpected ? '#94a3b8' : '#ca8a04';
+                        const potLabel = showExpected ? 'Potential' : 'Promoted';
+                        pills += `<span class="counsellor-pill" style="background-color: ${potColor}; color: #ffffff;" title="Potential Promotions: ${data.potential}">${data.potential} ${potLabel}</span> `;
+                    }
+                    
+                    html += `
+                        <div class="counsellor-stat-item">
+                            <div class="counsellor-name">${escapeHtml(counsellor)}</div>
+                            <div class="counsellor-bands">
+                                ${pills || '<span style="font-size:10px; color:var(--text-muted); font-weight: 500;">None starred</span>'}
+                            </div>
+                        </div>
+                    `;
+                }
             });
             container.innerHTML = html;
         }
 
+        // Header statistics
         function renderHeaderStats() {
             const container = document.getElementById('header-stats');
             const total = allCandidates.length;
-            const rankedCount = total - state.unranked.length;
-            const pct = total > 0 ? Math.round((rankedCount / total) * 100) : 0;
             
-            container.innerHTML = `
-                <div class="stat-item">Appraisal Progress: <span class="stat-val">${rankedCount} / ${total} (${pct}%)</span></div>
-                <div class="stat-item">Unranked Remaining: <span class="stat-val">${state.unranked.length}</span></div>
-            `;
+            if (currentView === 'performance') {
+                const rankedCount = total - state.unranked.length;
+                const pct = total > 0 ? Math.round((rankedCount / total) * 100) : 0;
+                
+                container.innerHTML = `
+                    <div class="stat-item">Appraisal Progress: <span class="stat-val">${rankedCount} / ${total} (${pct}%)</span></div>
+                    <div class="stat-item">Unranked Remaining: <span class="stat-val">${state.unranked.length}</span></div>
+                `;
+            } else {
+                const expectedCount = state.promotionLadderExpected.length;
+                const potentialCount = state.promotionLadderPotential.length;
+                const showExpected = (state.promotionCapacityExpected > 0);
+                
+                if (showExpected) {
+                    container.innerHTML = `
+                        <div class="stat-item">Expected: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${expectedCount} / ${state.promotionCapacityExpected}</span></div>
+                        <div class="stat-item">Potential: <span class="stat-val" style="background: #f1f5f9; border-color: #cbd5e1; color: #475569;">${potentialCount}</span></div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="stat-item">Promoted: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${potentialCount}</span></div>
+                    `;
+                }
+            }
         }
 
         // HTML escaping helper
