@@ -1,0 +1,50 @@
+{
+  "title": "LADDERATER",
+  "subtitle": "Calibration Session",
+  "bands": [
+    {
+      "id": "top-talent",
+      "name": "Top Talent",
+      "shortName": "Top",
+      "description": "Exceptional impact, sets new standards, and elevates peers.",
+      "hasLimit": true,
+      "defaultCapacity": 3,
+      "maxCapacity": 10,
+      "color": "#be185d",
+      "colorLight": "#fdf2f8",
+      "colorBorder": "#ec4899"
+    },
+    {
+      "id": "strong-performer",
+      "name": "Strong Performer",
+      "shortName": "Strong",
+      "description": "Consistently delivers high-quality outcomes and exceeds expectations.",
+      "hasLimit": true,
+      "defaultCapacity": 5,
+      "maxCapacity": 15,
+      "color": "#1d4ed8",
+      "colorLight": "#eff6ff",
+      "colorBorder": "#3b82f6"
+    },
+    {
+      "id": "core-performer",
+      "name": "Core Performer",
+      "shortName": "Core",
+      "description": "Solid, reliable contributor meeting all core expectations.",
+      "hasLimit": false,
+      "color": "#047857",
+      "colorLight": "#ecfdf5",
+      "colorBorder": "#10b981"
+    },
+    {
+      "id": "needs-support",
+      "name": "Needs Support",
+      "shortName": "Needs Supp",
+      "description": "Performance or developmental gaps identified; structured guidance required.",
+      "hasLimit": false,
+      "color": "#b91c1c",
+      "colorLight": "#fef2f2",
+      "colorBorder": "#ef4444"
+    }
+  ]
+}
