@@ -332,6 +332,18 @@ $htmlTemplate = @'
             border-color: #cbd5e1;
         }
         
+        .btn-export {
+            color: #4f46e5;
+            border-color: #c7d2fe;
+            background-color: #f5f3ff;
+        }
+        
+        .btn-export:hover {
+            background-color: #e0e7ff;
+            border-color: #818cf8;
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.05);
+        }
+
         .btn-reset {
             color: #e11d48;
             border-color: #fca5a5;
@@ -1106,7 +1118,7 @@ $htmlTemplate = @'
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
-                    Promotion Calibration
+                    Promotion Board
                 </button>
             </div>
             
@@ -1114,7 +1126,15 @@ $htmlTemplate = @'
                 <!-- Updated dynamically -->
             </div>
             
-            <div class="header-right">
+            <div class="header-right" style="display: flex; gap: 8px;">
+                <button class="btn btn-export" id="btn-export-list" onclick="exportToClipboard()" title="Copy ordered list to clipboard">
+                    <!-- Inline Clipboard SVG -->
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    Export List
+                </button>
                 <button class="btn btn-reset" onclick="resetBoard()" title="Reset all calibrations">
                     <!-- Inline Reset SVG -->
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1959,7 +1979,7 @@ $htmlTemplate = @'
             
             if (filtered.length === 0) {
                 if (state.unranked.length === 0) {
-                    container.innerHTML = `<div class="empty-state">All candidates have been ranked! 🎉</div>`;
+                    container.innerHTML = `<div class="empty-state">All candidates have been ranked! \u{1F389}</div>`;
                 } else {
                     container.innerHTML = `<div class="empty-state">No candidates match search criteria</div>`;
                 }
@@ -2457,6 +2477,98 @@ $htmlTemplate = @'
                       .replace(/>/g, "&gt;")
                       .replace(/"/g, "&quot;")
                       .replace(/'/g, "&#039;");
+        }
+
+        function exportToClipboard() {
+            let text = '';
+            
+            if (currentView === 'performance') {
+                text += `${CONFIG.title || 'LADDERATER'} - Performance Board\n`;
+                text += `===================================\n\n`;
+                
+                let globalIdx = 1;
+                CONFIG.bands.forEach((b, idx) => {
+                    text += `${idx + 1}. ${b.name.toUpperCase()}\n`;
+                    text += `-`.repeat(b.name.length + 3) + `\n`;
+                    const bandList = state.bands[b.id] || [];
+                    if (bandList.length === 0) {
+                        text += `  (No candidates ranked)\n`;
+                    } else {
+                        bandList.forEach((c) => {
+                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                            globalIdx++;
+                        });
+                    }
+                    text += `\n`;
+                });
+            } else {
+                text += `${CONFIG.title || 'LADDERATER'} - Promotion Board\n`;
+                text += `=================================\n\n`;
+                
+                let globalIdx = 1;
+                const showExpected = (state.promotionCapacityExpected > 0);
+                if (showExpected) {
+                    text += `EXPECTED PROMOTIONS\n`;
+                    text += `-------------------\n`;
+                    if (state.promotionLadderExpected.length === 0) {
+                        text += `  (No candidates allocated)\n`;
+                    } else {
+                        state.promotionLadderExpected.forEach((c) => {
+                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                            globalIdx++;
+                        });
+                    }
+                    text += `\n`;
+                    
+                    text += `POTENTIAL PROMOTIONS\n`;
+                    text += `--------------------\n`;
+                    if (state.promotionLadderPotential.length === 0) {
+                        text += `  (No candidates allocated)\n`;
+                    } else {
+                        state.promotionLadderPotential.forEach((c) => {
+                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                            globalIdx++;
+                        });
+                    }
+                } else {
+                    text += `PROMOTIONS (UNCAPPED)\n`;
+                    text += `---------------------\n`;
+                    if (state.promotionLadderPotential.length === 0) {
+                        text += `  (No candidates allocated)\n`;
+                    } else {
+                        state.promotionLadderPotential.forEach((c) => {
+                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                            globalIdx++;
+                        });
+                    }
+                }
+            }
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('btn-export-list');
+                if (btn) {
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = `
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Copied!
+                    `;
+                    btn.style.color = '#166534';
+                    btn.style.backgroundColor = '#f0fdf4';
+                    btn.style.borderColor = '#bbf7d0';
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.style.color = '';
+                        btn.style.backgroundColor = '';
+                        btn.style.borderColor = '';
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy text to clipboard: ', err);
+                alert('Failed to copy ordered list to clipboard.');
+            });
         }
     </script>
 </body>
