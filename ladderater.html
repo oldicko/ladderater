@@ -904,7 +904,6 @@
             width: 100%;
             line-height: 1.45;
             word-break: break-word;
-            font-style: italic;
         }
         
         .discuss-active-actions {
@@ -2025,7 +2024,7 @@
                         <div class="candidate-name" style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">${escapeHtml(currentCandidate.name)}</div>
                         <div class="candidate-counsellor" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Counsellor: <strong>${escapeHtml(currentCandidate.counsellor)}</strong></div>
                         ${currentCandidate.email ? `<div class="candidate-email" style="font-size: 12px; color: var(--text-muted); font-family: monospace; word-break: break-all;">${escapeHtml(currentCandidate.email)}</div>` : ''}
-                        ${currentCandidate.comment ? `<div class="candidate-comment-box">"${escapeHtml(currentCandidate.comment)}"</div>` : ''}
+                        ${currentCandidate.comment ? `<div class="candidate-comment-box">${escapeHtml(currentCandidate.comment.replace(/^["']+|["']+$/g, ''))}</div>` : ''}
                     </div>
                 </div>
                 <div class="discuss-active-actions">
