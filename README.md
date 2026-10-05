@@ -16,7 +16,7 @@ To make sharing as easy as possible, the application is compiled into a **single
   - **Golden Transition**: Set Expected capacity to `0` to hide the Expected row and automatically transition Potential Promotions into a gold-themed uncapped promotions board.
   - **Candidate Pool**: Shows all unstarred candidates in the right sidebar, letting you promote them via drag-and-drop or star toggles, or demote them by removing stars.
 - **Discuss Next Queue**: Sequentially loads unranked candidates in alphabetical order into a dedicated discussion widget with quick-placement buttons, speeding up calibrations.
-- **Large "Under Discussion" Dashboard**: A prominent, vertical profile card with a large photo/avatar, candidate name, counselor, and email address, centered at the top of the sidebar to keep the spotlight on the candidate currently being calibrated.
+- **Large "Under Discussion" Dashboard**: A prominent, vertical profile card with a large photo/avatar, candidate name, counselor, email address, and optional appraisal comments/notes, centered at the top of the sidebar to keep the spotlight on the candidate currently being calibrated.
 - **Counsellor Breakdown**: Real-time aggregation of how many candidates each counselor has placed in each band, helping the panel spot distribution imbalances.
 - **LocalStorage State Preservation**: Automatically saves the board's state in your browser cache so progress is never lost on page refresh. The state is keyed to your candidate database, resetting automatically only if the input candidate list changes.
 - **100% Offline-Capable**: Generates beautiful initials-based profile pictures using linear gradients on the fly, eliminating external network requests.
@@ -36,11 +36,11 @@ To make sharing as easy as possible, the application is compiled into a **single
 ## How to Use
 
 ### 1. Configure Candidates
-Open `candidates.csv` in Excel or any text editor and populate it with your candidates. Optionally, you can add an `Email` column to dynamically fetch profile pictures from Entra ID (Microsoft Graph) during compilation:
+Open `candidates.csv` in Excel or any text editor and populate it with your candidates. Optionally, you can add an `Email` column to dynamically fetch profile pictures from Entra ID (Microsoft Graph) during compilation, and a `Comment` column to display notes, calibration feedback, or achievements directly in the "Under Discussion" panel:
 ```csv
-Name,Counsellor,Email
-Alice Vance,Marcus Vance,alice.vance@company.com
-Bob Miller,Sarah Jenkins,bob.miller@company.com
+Name,Counsellor,Email,Comment
+Alice Vance,Marcus Vance,alice.vance@company.com,"Top candidate for Staff promotion; exceptional cross-team technical leadership."
+Bob Miller,Sarah Jenkins,bob.miller@company.com,"Consistent high deliverer; key contributor to backend performance improvements."
 ```
 
 ### 2. Generate the Application

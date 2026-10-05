@@ -890,6 +890,22 @@
             height: 72px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
         }
+
+        .candidate-comment-box {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 3px solid #6366f1;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: left;
+            width: 100%;
+            line-height: 1.45;
+            word-break: break-word;
+            font-style: italic;
+        }
         
         .discuss-active-actions {
             display: grid;
@@ -1068,7 +1084,7 @@
 
     <script>
         // Data injected by compile script
-        const INITIAL_CANDIDATES = [{"Name":"Alice Vance","Counsellor":"Marcus Vance","Email":"alice.vance@company.com","Photo":null},{"Name":"Bob Miller","Counsellor":"Sarah Jenkins","Email":"bob.miller@company.com","Photo":null},{"Name":"Catherine de Medici","Counsellor":"Thomas Wolsey","Email":"catherine.medici@company.com","Photo":null},{"Name":"David Hume","Counsellor":"Adam Smith","Email":"david.hume@company.com","Photo":null},{"Name":"Elizabeth Bennet","Counsellor":"Jane Austen","Email":"elizabeth.bennet@company.com","Photo":null},{"Name":"Franklin Roosevelt","Counsellor":"Winston Churchill","Email":"franklin.roosevelt@company.com","Photo":null},{"Name":"George Washington","Counsellor":"Alexander Hamilton","Email":"george.washington@company.com","Photo":null},{"Name":"Harriet Tubman","Counsellor":"Frederick Douglass","Email":"harriet.tubman@company.com","Photo":null},{"Name":"Isaac Newton","Counsellor":"Robert Hooke","Email":"isaac.newton@company.com","Photo":null},{"Name":"Jane Eyre","Counsellor":"Charlotte Bronte","Email":"jane.eyre@company.com","Photo":null},{"Name":"Katherine Johnson","Counsellor":"Dorothy Vaughan","Email":"katherine.johnson@company.com","Photo":null},{"Name":"Leonardo da Vinci","Counsellor":"Marcus Vance","Email":"leonardo.davinci@company.com","Photo":null},{"Name":"Marie Curie","Counsellor":"Sarah Jenkins","Email":"marie.curie@company.com","Photo":null},{"Name":"Nikola Tesla","Counsellor":"Thomas Wolsey","Email":"nikola.tesla@company.com","Photo":null},{"Name":"Oscar Wilde","Counsellor":"Adam Smith","Email":"oscar.wilde@company.com","Photo":null}];
+        const INITIAL_CANDIDATES = [{"Name":"Alice Vance","Counsellor":"Marcus Vance","Email":"alice.vance@company.com","Comment":"Top candidate for Staff promotion; exceptional cross-team technical leadership.","Photo":null},{"Name":"Bob Miller","Counsellor":"Sarah Jenkins","Email":"bob.miller@company.com","Comment":"Consistent high deliverer; key contributor to backend performance improvements.","Photo":null},{"Name":"Catherine de Medici","Counsellor":"Thomas Wolsey","Email":"catherine.medici@company.com","Comment":"Exceeded goals on strategic procurement initiative; strong stakeholder influence.","Photo":null},{"Name":"David Hume","Counsellor":"Adam Smith","Email":"david.hume@company.com","Comment":"Solid core contributor; reliable delivery on analytics and reporting pipeline.","Photo":null},{"Name":"Elizabeth Bennet","Counsellor":"Jane Austen","Email":"elizabeth.bennet@company.com","Comment":"Outstanding communication and collaboration; drives team alignment.","Photo":null},{"Name":"Franklin Roosevelt","Counsellor":"Winston Churchill","Email":"franklin.roosevelt@company.com","Comment":"Strong crisis management and strategic vision across complex initiatives.","Photo":null},{"Name":"George Washington","Counsellor":"Alexander Hamilton","Email":"george.washington@company.com","Comment":"Exemplary operational leadership; established foundational standards.","Photo":null},{"Name":"Harriet Tubman","Counsellor":"Frederick Douglass","Email":"harriet.tubman@company.com","Comment":"Navigates difficult blockers effortlessly; acts as an unblocker for multiple squads.","Photo":null},{"Name":"Isaac Newton","Counsellor":"Robert Hooke","Email":"isaac.newton@company.com","Comment":"Deep technical expertise; pioneering solutions in algorithmic efficiency.","Photo":null},{"Name":"Jane Eyre","Counsellor":"Charlotte Bronte","Email":"jane.eyre@company.com","Comment":"Resilient under pressure; consistently maintains high code quality.","Photo":null},{"Name":"Katherine Johnson","Counsellor":"Dorothy Vaughan","Email":"katherine.johnson@company.com","Comment":"Pivotal contributions to mission-critical calculations and precision testing.","Photo":null},{"Name":"Leonardo da Vinci","Counsellor":"Marcus Vance","Email":"leonardo.davinci@company.com","Comment":"Versatile and inventive problem-solver across both UX and backend domains.","Photo":null},{"Name":"Marie Curie","Counsellor":"Sarah Jenkins","Email":"marie.curie@company.com","Comment":"Breakthrough contributions in core research; publishes high-impact work.","Photo":null},{"Name":"Nikola Tesla","Counsellor":"Thomas Wolsey","Email":"nikola.tesla@company.com","Comment":"Highly innovative engineer; created novel power efficiency architectures.","Photo":null},{"Name":"Oscar Wilde","Counsellor":"Adam Smith","Email":"oscar.wilde@company.com","Comment":"Creative approach to client engagement and product storytelling.","Photo":null}];
         const CONFIG = {
   "title": "LADDERATER",
   "subtitle": "Calibration Session",
@@ -1190,7 +1206,8 @@
                 name: c.Name,
                 counsellor: c.Counsellor,
                 email: c.Email || null,
-                photo: c.Photo || null
+                photo: c.Photo || null,
+                comment: c.Comment || null
             }));
             
             state = loadState(allCandidates);
@@ -1210,7 +1227,7 @@
 
         // State Caching Hash incorporating candidates and band configurations
         function getCandidatesHash(candidates, config) {
-            let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
+            let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.comment || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
             let configStr = config.bands.map(b => `${b.id}:${b.hasLimit}:${b.defaultCapacity}`).join(';');
             let promoStr = `${config.enablePromotions || false}:${config.defaultExpectedSpaces || 3}:${config.maxExpectedSpaces || 10}`;
             let str = candStr + '||' + configStr + '||' + promoStr;
@@ -1229,10 +1246,26 @@
                 try {
                     const parsed = JSON.parse(saved);
                     if (parsed.hash === currentHash) {
+                        // Refresh candidate objects to ensure comment and other properties match current allCandidates
+                        const candMap = new Map(initialList.map(c => [c.id, c]));
+                        const refreshCand = c => ({ ...c, ...(candMap.get(c.id) || {}) });
+                        parsed.state.unranked = (parsed.state.unranked || []).map(refreshCand);
+                        for (const bandId in parsed.state.bands) {
+                            parsed.state.bands[bandId] = (parsed.state.bands[bandId] || []).map(refreshCand);
+                        }
+
                         // Ensure all structures are backwards-compatible
                         if (!parsed.state.starredCandidateIds) parsed.state.starredCandidateIds = [];
-                        if (!parsed.state.promotionLadderExpected) parsed.state.promotionLadderExpected = [];
-                        if (!parsed.state.promotionLadderPotential) parsed.state.promotionLadderPotential = [];
+                        if (!parsed.state.promotionLadderExpected) {
+                            parsed.state.promotionLadderExpected = [];
+                        } else {
+                            parsed.state.promotionLadderExpected = parsed.state.promotionLadderExpected.map(refreshCand);
+                        }
+                        if (!parsed.state.promotionLadderPotential) {
+                            parsed.state.promotionLadderPotential = [];
+                        } else {
+                            parsed.state.promotionLadderPotential = parsed.state.promotionLadderPotential.map(refreshCand);
+                        }
                         if (parsed.state.promotionCapacityExpected === undefined) parsed.state.promotionCapacityExpected = (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3);
                         return parsed.state;
                     }
@@ -1928,7 +1961,8 @@
             
             const filtered = state.unranked.filter(c => 
                 c.name.toLowerCase().includes(searchVal) || 
-                c.counsellor.toLowerCase().includes(searchVal)
+                c.counsellor.toLowerCase().includes(searchVal) ||
+                (c.comment && c.comment.toLowerCase().includes(searchVal))
             );
             
             if (filtered.length === 0) {
@@ -1991,6 +2025,7 @@
                         <div class="candidate-name" style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">${escapeHtml(currentCandidate.name)}</div>
                         <div class="candidate-counsellor" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Counsellor: <strong>${escapeHtml(currentCandidate.counsellor)}</strong></div>
                         ${currentCandidate.email ? `<div class="candidate-email" style="font-size: 12px; color: var(--text-muted); font-family: monospace; word-break: break-all;">${escapeHtml(currentCandidate.email)}</div>` : ''}
+                        ${currentCandidate.comment ? `<div class="candidate-comment-box">"${escapeHtml(currentCandidate.comment)}"</div>` : ''}
                     </div>
                 </div>
                 <div class="discuss-active-actions">
@@ -2139,7 +2174,8 @@
             
             const filtered = available.filter(c => 
                 c.name.toLowerCase().includes(searchVal) || 
-                c.counsellor.toLowerCase().includes(searchVal)
+                c.counsellor.toLowerCase().includes(searchVal) ||
+                (c.comment && c.comment.toLowerCase().includes(searchVal))
             );
             
             if (filtered.length === 0) {

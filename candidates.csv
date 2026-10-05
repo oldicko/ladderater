@@ -1,16 +1,16 @@
-Name,Counsellor,Email
-Alice Vance,Marcus Vance,alice.vance@company.com
-Bob Miller,Sarah Jenkins,bob.miller@company.com
-Catherine de Medici,Thomas Wolsey,catherine.medici@company.com
-David Hume,Adam Smith,david.hume@company.com
-Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com
-Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com
-George Washington,Alexander Hamilton,george.washington@company.com
-Harriet Tubman,Frederick Douglass,harriet.tubman@company.com
-Isaac Newton,Robert Hooke,isaac.newton@company.com
-Jane Eyre,Charlotte Bronte,jane.eyre@company.com
-Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com
-Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com
-Marie Curie,Sarah Jenkins,marie.curie@company.com
-Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com
-Oscar Wilde,Adam Smith,oscar.wilde@company.com
+Name,Counsellor,Email,Comment
+Alice Vance,Marcus Vance,alice.vance@company.com,"Top candidate for Staff promotion; exceptional cross-team technical leadership."
+Bob Miller,Sarah Jenkins,bob.miller@company.com,"Consistent high deliverer; key contributor to backend performance improvements."
+Catherine de Medici,Thomas Wolsey,catherine.medici@company.com,"Exceeded goals on strategic procurement initiative; strong stakeholder influence."
+David Hume,Adam Smith,david.hume@company.com,"Solid core contributor; reliable delivery on analytics and reporting pipeline."
+Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com,"Outstanding communication and collaboration; drives team alignment."
+Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com,"Strong crisis management and strategic vision across complex initiatives."
+George Washington,Alexander Hamilton,george.washington@company.com,"Exemplary operational leadership; established foundational standards."
+Harriet Tubman,Frederick Douglass,harriet.tubman@company.com,"Navigates difficult blockers effortlessly; acts as an unblocker for multiple squads."
+Isaac Newton,Robert Hooke,isaac.newton@company.com,"Deep technical expertise; pioneering solutions in algorithmic efficiency."
+Jane Eyre,Charlotte Bronte,jane.eyre@company.com,"Resilient under pressure; consistently maintains high code quality."
+Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com,"Pivotal contributions to mission-critical calculations and precision testing."
+Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com,"Versatile and inventive problem-solver across both UX and backend domains."
+Marie Curie,Sarah Jenkins,marie.curie@company.com,"Breakthrough contributions in core research; publishes high-impact work."
+Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com,"Highly innovative engineer; created novel power efficiency architectures."
+Oscar Wilde,Adam Smith,oscar.wilde@company.com,"Creative approach to client engagement and product storytelling."

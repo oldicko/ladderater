@@ -11,22 +11,22 @@ $csvPath = Join-Path $PSScriptRoot "candidates.csv"
 # 1. Create a default candidates.csv if it does not exist
 if (-not (Test-Path $csvPath)) {
     $defaultCsv = @"
-Name,Counsellor,Email
-Alice Vance,Marcus Vance,alice.vance@company.com
-Bob Miller,Sarah Jenkins,bob.miller@company.com
-Catherine de Medici,Thomas Wolsey,catherine.medici@company.com
-David Hume,Adam Smith,david.hume@company.com
-Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com
-Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com
-George Washington,Alexander Hamilton,george.washington@company.com
-Harriet Tubman,Frederick Douglass,harriet.tubman@company.com
-Isaac Newton,Robert Hooke,isaac.newton@company.com
-Jane Eyre,Charlotte Bronte,jane.eyre@company.com
-Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com
-Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com
-Marie Curie,Sarah Jenkins,marie.curie@company.com
-Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com
-Oscar Wilde,Adam Smith,oscar.wilde@company.com
+Name,Counsellor,Email,Comment
+Alice Vance,Marcus Vance,alice.vance@company.com,"Top candidate for Staff promotion; exceptional cross-team technical leadership."
+Bob Miller,Sarah Jenkins,bob.miller@company.com,"Consistent high deliverer; key contributor to backend performance improvements."
+Catherine de Medici,Thomas Wolsey,catherine.medici@company.com,"Exceeded goals on strategic procurement initiative; strong stakeholder influence."
+David Hume,Adam Smith,david.hume@company.com,"Solid core contributor; reliable delivery on analytics and reporting pipeline."
+Elizabeth Bennet,Jane Austen,elizabeth.bennet@company.com,"Outstanding communication and collaboration; drives team alignment."
+Franklin Roosevelt,Winston Churchill,franklin.roosevelt@company.com,"Strong crisis management and strategic vision across complex initiatives."
+George Washington,Alexander Hamilton,george.washington@company.com,"Exemplary operational leadership; established foundational standards."
+Harriet Tubman,Frederick Douglass,harriet.tubman@company.com,"Navigates difficult blockers effortlessly; acts as an unblocker for multiple squads."
+Isaac Newton,Robert Hooke,isaac.newton@company.com,"Deep technical expertise; pioneering solutions in algorithmic efficiency."
+Jane Eyre,Charlotte Bronte,jane.eyre@company.com,"Resilient under pressure; consistently maintains high code quality."
+Katherine Johnson,Dorothy Vaughan,katherine.johnson@company.com,"Pivotal contributions to mission-critical calculations and precision testing."
+Leonardo da Vinci,Marcus Vance,leonardo.davinci@company.com,"Versatile and inventive problem-solver across both UX and backend domains."
+Marie Curie,Sarah Jenkins,marie.curie@company.com,"Breakthrough contributions in core research; publishes high-impact work."
+Nikola Tesla,Thomas Wolsey,nikola.tesla@company.com,"Highly innovative engineer; created novel power efficiency architectures."
+Oscar Wilde,Adam Smith,oscar.wilde@company.com,"Creative approach to client engagement and product storytelling."
 "@
     # Set encoding to UTF8 so characters compile cleanly
     Set-Content -Path $csvPath -Value $defaultCsv -Encoding utf8
@@ -43,13 +43,16 @@ try {
     exit 1
 }
 
-# Ensure properties Email and Photo exist on all candidate objects
+# Ensure properties Email, Photo, and Comment exist on all candidate objects
 foreach ($c in $candidates) {
     if (-not ($c.psobject.Properties['Email'])) {
         $c | Add-Member -MemberType NoteProperty -Name "Email" -Value $null
     }
     if (-not ($c.psobject.Properties['Photo'])) {
         $c | Add-Member -MemberType NoteProperty -Name "Photo" -Value $null
+    }
+    if (-not ($c.psobject.Properties['Comment'])) {
+        $c | Add-Member -MemberType NoteProperty -Name "Comment" -Value $null
     }
 }
 
@@ -1071,6 +1074,22 @@ $htmlTemplate = @'
             height: 72px;
             box-shadow: 0 4px 8px rgba(0,0,0,0.08);
         }
+
+        .candidate-comment-box {
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-left: 3px solid #6366f1;
+            border-radius: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: left;
+            width: 100%;
+            line-height: 1.45;
+            word-break: break-word;
+            font-style: italic;
+        }
         
         .discuss-active-actions {
             display: grid;
@@ -1318,7 +1337,8 @@ $htmlTemplate = @'
                 name: c.Name,
                 counsellor: c.Counsellor,
                 email: c.Email || null,
-                photo: c.Photo || null
+                photo: c.Photo || null,
+                comment: c.Comment || null
             }));
             
             state = loadState(allCandidates);
@@ -1338,7 +1358,7 @@ $htmlTemplate = @'
 
         // State Caching Hash incorporating candidates and band configurations
         function getCandidatesHash(candidates, config) {
-            let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
+            let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.comment || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
             let configStr = config.bands.map(b => `${b.id}:${b.hasLimit}:${b.defaultCapacity}`).join(';');
             let promoStr = `${config.enablePromotions || false}:${config.defaultExpectedSpaces || 3}:${config.maxExpectedSpaces || 10}`;
             let str = candStr + '||' + configStr + '||' + promoStr;
@@ -1357,10 +1377,26 @@ $htmlTemplate = @'
                 try {
                     const parsed = JSON.parse(saved);
                     if (parsed.hash === currentHash) {
+                        // Refresh candidate objects to ensure comment and other properties match current allCandidates
+                        const candMap = new Map(initialList.map(c => [c.id, c]));
+                        const refreshCand = c => ({ ...c, ...(candMap.get(c.id) || {}) });
+                        parsed.state.unranked = (parsed.state.unranked || []).map(refreshCand);
+                        for (const bandId in parsed.state.bands) {
+                            parsed.state.bands[bandId] = (parsed.state.bands[bandId] || []).map(refreshCand);
+                        }
+
                         // Ensure all structures are backwards-compatible
                         if (!parsed.state.starredCandidateIds) parsed.state.starredCandidateIds = [];
-                        if (!parsed.state.promotionLadderExpected) parsed.state.promotionLadderExpected = [];
-                        if (!parsed.state.promotionLadderPotential) parsed.state.promotionLadderPotential = [];
+                        if (!parsed.state.promotionLadderExpected) {
+                            parsed.state.promotionLadderExpected = [];
+                        } else {
+                            parsed.state.promotionLadderExpected = parsed.state.promotionLadderExpected.map(refreshCand);
+                        }
+                        if (!parsed.state.promotionLadderPotential) {
+                            parsed.state.promotionLadderPotential = [];
+                        } else {
+                            parsed.state.promotionLadderPotential = parsed.state.promotionLadderPotential.map(refreshCand);
+                        }
                         if (parsed.state.promotionCapacityExpected === undefined) parsed.state.promotionCapacityExpected = (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3);
                         return parsed.state;
                     }
@@ -2056,7 +2092,8 @@ $htmlTemplate = @'
             
             const filtered = state.unranked.filter(c => 
                 c.name.toLowerCase().includes(searchVal) || 
-                c.counsellor.toLowerCase().includes(searchVal)
+                c.counsellor.toLowerCase().includes(searchVal) ||
+                (c.comment && c.comment.toLowerCase().includes(searchVal))
             );
             
             if (filtered.length === 0) {
@@ -2119,6 +2156,7 @@ $htmlTemplate = @'
                         <div class="candidate-name" style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px;">${escapeHtml(currentCandidate.name)}</div>
                         <div class="candidate-counsellor" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">Counsellor: <strong>${escapeHtml(currentCandidate.counsellor)}</strong></div>
                         ${currentCandidate.email ? `<div class="candidate-email" style="font-size: 12px; color: var(--text-muted); font-family: monospace; word-break: break-all;">${escapeHtml(currentCandidate.email)}</div>` : ''}
+                        ${currentCandidate.comment ? `<div class="candidate-comment-box">"${escapeHtml(currentCandidate.comment)}"</div>` : ''}
                     </div>
                 </div>
                 <div class="discuss-active-actions">
@@ -2267,7 +2305,8 @@ $htmlTemplate = @'
             
             const filtered = available.filter(c => 
                 c.name.toLowerCase().includes(searchVal) || 
-                c.counsellor.toLowerCase().includes(searchVal)
+                c.counsellor.toLowerCase().includes(searchVal) ||
+                (c.comment && c.comment.toLowerCase().includes(searchVal))
             );
             
             if (filtered.length === 0) {
