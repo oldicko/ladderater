@@ -11,10 +11,11 @@ To make sharing as easy as possible, the application is compiled into a **single
 - **Strict Laddering**: Candidates are ranked in a strict sequence. No two candidates can occupy the same rank.
 - **Cascading Overflow**: If a candidate is dropped into a slot-limited band that is full, the candidate at the bottom of that band is automatically pushed down to the next band (e.g. *Strategic Impact* -> *Differentiating* -> *Progressing*).
 - **Contiguous Sorting**: Candidates snap to the next available position within a band, preventing gaps and keeping the calibration clean.
-- **Promotion Board View**: Toggle to a dual-row promotion board with **Expected Promotions** (capped capacity, gold themed) and **Potential Promotions** (uncapped, silver themed):
-  - **Double-Row Sequential Cascade**: Adjusting Expected spaces or starring/unstarring candidates cascades them down (Expected -> Potential) or pulls them up (Potential -> Expected).
-  - **Golden Transition**: Set Expected capacity to `0` to hide the Expected row and automatically transition Potential Promotions into a gold-themed uncapped promotions board.
-  - **Candidate Pool**: Shows all unstarred candidates in the right sidebar, letting you promote them via drag-and-drop or star toggles, or demote them by removing stars.
+- **Configurable Promotion Board**: Toggle between the Performance Board and an Appraisal Promotion Board tailored to your organization's calibration workflow:
+  - **Default Two-Tier Mode**: Features **Expected Promotions** (capped capacity, gold themed) and **Potential Promotions** (uncapped, slate/silver themed), with bidirectional cascading, plus the **Golden Transition** when Expected capacity is set to `0`.
+  - **Multi-Bucket Mode (e.g. 3 Buckets)**: Full support for custom buckets such as **Promote Now**, **Promote Soon**, and **Promote Later**, complete with customized colors, slot capacities, descriptions, and automatic downward cascading.
+  - **Starred Promotion Flags**: Star or unstar candidates to immediately allocate them into promotion ladders, preserved across view switches.
+  - **Candidate Pool**: Displays unstarred candidates in the right sidebar with drag-and-drop support, quick-star actions, and Auto-Fill.
 - **Discuss Next Queue**: Sequentially loads unranked candidates in alphabetical order into a dedicated discussion widget with quick-placement buttons, speeding up calibrations.
 - **Large "Under Discussion" Dashboard**: A prominent, vertical profile card with a large photo/avatar, candidate name, counselor, email address, and optional appraisal comments/notes, centered at the top of the sidebar to keep the spotlight on the candidate currently being calibrated.
 - **Counsellor Breakdown**: Real-time aggregation of how many candidates each counselor has placed in each band, helping the panel spot distribution imbalances.
@@ -58,11 +59,101 @@ This will retrieve the profile photos for candidates with email addresses, conve
 ### 3. Open the App
 Double-click the generated `ladderater.html` file to open it in **Google Chrome**, **Microsoft Edge**, or **Firefox**.
 
-### 4. Configure Promotions (Optional)
-To use the optional double-row promotion board:
-- Open `config.json` and set `"enablePromotions": true`.
-- Customize the gold row's default and maximum capacity using `"defaultExpectedSpaces"` and `"maxExpectedSpaces"`.
-- Set `"defaultExpectedSpaces"` to `0` if you want only a single, uncapped golden promotions row.
+### 4. Configure Promotion Board
+
+The promotion board is enabled when `"enablePromotions": true` is set in `config.json`. You can customize the promotion board structure via the `"promotionBuckets"` array.
+
+#### Default Mode: Two-Tier (Expected & Potential)
+By default, `config.json` is set up with two tiers:
+- **Expected Promotions**: Capped capacity with interactive stepper controls, gold styling (`#ca8a04`), and cascading overflow. Setting capacity to `0` triggers the "Golden Transition" where the Expected row is hidden and Potential becomes the sole golden promotions board.
+- **Potential Promotions**: Uncapped pool, slate/silver styling (`#64748b`), receiving overflow from Expected slots.
+
+```json
+{
+  "enablePromotions": true,
+  "defaultExpectedSpaces": 3,
+  "maxExpectedSpaces": 10,
+  "promotionBuckets": [
+    {
+      "id": "expected",
+      "name": "Expected Promotions",
+      "shortName": "Expected",
+      "description": "Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.",
+      "hasLimit": true,
+      "defaultCapacity": 3,
+      "maxCapacity": 10,
+      "color": "#ca8a04",
+      "colorLight": "#fffbeb",
+      "colorBorder": "#f59e0b"
+    },
+    {
+      "id": "potential",
+      "name": "Potential Promotions",
+      "shortName": "Potential",
+      "description": "Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.",
+      "hasLimit": false,
+      "color": "#64748b",
+      "colorLight": "#f8fafc",
+      "colorBorder": "#94a3b8"
+    }
+  ]
+}
+```
+
+#### Three-Bucket Mode: Promote Now / Soon / Later
+You can also configure three readiness buckets (or use `"promotionMode": "three-buckets"`):
+- **Promote Now**: Readiness for promotion in the current cycle (capped, green theme).
+- **Promote Soon**: Readiness for promotion in the next cycle (uncapped, amber theme).
+- **Promote Later**: Readiness for promotion in a future cycle (uncapped, slate theme).
+
+```json
+{
+  "enablePromotions": true,
+  "promotionBuckets": [
+    {
+      "id": "promote-now",
+      "name": "Promote Now",
+      "shortName": "Now",
+      "description": "Readiness for promotion in the current cycle",
+      "hasLimit": true,
+      "defaultCapacity": 3,
+      "maxCapacity": 10,
+      "color": "#16a34a",
+      "colorLight": "#f0fdf4",
+      "colorBorder": "#22c55e"
+    },
+    {
+      "id": "promote-soon",
+      "name": "Promote Soon",
+      "shortName": "Soon",
+      "description": "Readiness for promotion in the next cycle",
+      "hasLimit": false,
+      "color": "#ca8a04",
+      "colorLight": "#fefce8",
+      "colorBorder": "#f59e0b"
+    },
+    {
+      "id": "promote-later",
+      "name": "Promote Later",
+      "shortName": "Later",
+      "description": "Readiness for promotion in a future cycle",
+      "hasLimit": false,
+      "color": "#475569",
+      "colorLight": "#f8fafc",
+      "colorBorder": "#94a3b8"
+    }
+  ]
+}
+```
+
+Each bucket can be tailored with:
+- `id`: Unique identifier (e.g. `promote-now`).
+- `name`: Display title in the ladder row header.
+- `shortName`: Abbreviated label for header stats and counselor breakdown pills.
+- `description`: Explanatory subtitle shown beneath the ladder title.
+- `hasLimit`: Boolean indicating whether the bucket has fixed slot capacity (`true`) or is uncapped (`false`).
+- `defaultCapacity` & `maxCapacity`: Starting slot count and upper limit for steppers (for limited buckets).
+- `color`, `colorLight`, `colorBorder`: Custom hex color palette for borders, badges, cards, and drop zones.
 
 ### 5. Export Calibration Lists
 Click the **Export List** button in the header at any time. This will copy the ordered list of candidates from the current view directly to your clipboard, allowing you to easily paste it into emails, spreadsheets, or documents. The export includes:

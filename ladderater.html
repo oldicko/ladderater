@@ -1090,6 +1090,30 @@
   "enablePromotions": true,
   "defaultExpectedSpaces": 3,
   "maxExpectedSpaces": 10,
+  "promotionBuckets": [
+    {
+      "id": "expected",
+      "name": "Expected Promotions",
+      "shortName": "Expected",
+      "description": "Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.",
+      "hasLimit": true,
+      "defaultCapacity": 3,
+      "maxCapacity": 10,
+      "color": "#ca8a04",
+      "colorLight": "#fffbeb",
+      "colorBorder": "#f59e0b"
+    },
+    {
+      "id": "potential",
+      "name": "Potential Promotions",
+      "shortName": "Potential",
+      "description": "Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.",
+      "hasLimit": false,
+      "color": "#64748b",
+      "colorLight": "#f8fafc",
+      "colorBorder": "#94a3b8"
+    }
+  ],
   "bands": [
     {
       "id": "top-talent",
@@ -1143,6 +1167,79 @@
         let state = {};
         let draggedCandidateId = null;
         let currentView = 'performance';
+        let promoBuckets = [];
+
+        function getPromotionBuckets() {
+            if (CONFIG.promotionBuckets && Array.isArray(CONFIG.promotionBuckets) && CONFIG.promotionBuckets.length > 0) {
+                return CONFIG.promotionBuckets;
+            }
+            if (CONFIG.promotionBands && Array.isArray(CONFIG.promotionBands) && CONFIG.promotionBands.length > 0) {
+                return CONFIG.promotionBands;
+            }
+            if (CONFIG.promotionMode === 'three-buckets' || CONFIG.promotionMode === 'three-bucket' || CONFIG.promotionMode === '3-bucket') {
+                return [
+                    {
+                        id: 'promote-now',
+                        name: 'Promote Now',
+                        shortName: 'Now',
+                        description: 'Readiness for promotion in the current cycle',
+                        hasLimit: false,
+                        color: '#16a34a',
+                        colorLight: '#f0fdf4',
+                        colorBorder: '#22c55e'
+                    },
+                    {
+                        id: 'promote-soon',
+                        name: 'Promote Soon',
+                        shortName: 'Soon',
+                        description: 'Readiness for promotion in the next cycle',
+                        hasLimit: false,
+                        color: '#d97706',
+                        colorLight: '#fffbeb',
+                        colorBorder: '#f59e0b'
+                    },
+                    {
+                        id: 'promote-later',
+                        name: 'Promote Later',
+                        shortName: 'Later',
+                        description: 'Readiness for promotion in a future cycle',
+                        hasLimit: false,
+                        color: '#4f46e5',
+                        colorLight: '#eef2ff',
+                        colorBorder: '#6366f1'
+                    }
+                ];
+            }
+            // Default 2-tier mode (Expected / Potential)
+            return [
+                {
+                    id: 'expected',
+                    name: 'Expected Promotions',
+                    shortName: 'Expected',
+                    description: 'Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.',
+                    hasLimit: true,
+                    defaultCapacity: (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3),
+                    maxCapacity: (CONFIG.maxExpectedSpaces !== undefined ? CONFIG.maxExpectedSpaces : 10),
+                    color: '#ca8a04',
+                    colorLight: '#fffbeb',
+                    colorBorder: '#f59e0b'
+                },
+                {
+                    id: 'potential',
+                    name: 'Potential Promotions',
+                    shortName: 'Potential',
+                    description: 'Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.',
+                    hasLimit: false,
+                    color: '#64748b',
+                    colorLight: '#f8fafc',
+                    colorBorder: '#94a3b8'
+                }
+            ];
+        }
+
+        function isTwoTierPromoMode() {
+            return promoBuckets.length === 2 && promoBuckets[0].id === 'expected' && promoBuckets[1].id === 'potential';
+        }
 
         // Initialize App
         window.addEventListener('DOMContentLoaded', () => {
@@ -1150,6 +1247,8 @@
         });
 
         function init() {
+            promoBuckets = getPromotionBuckets();
+
             // Generate dynamic CSS variables and classes for each band
             const styleEl = document.createElement('style');
             let css = ':root {\n';
@@ -1157,6 +1256,11 @@
                 css += `  --color-${b.id}: ${b.color};\n`;
                 css += `  --color-${b.id}-light: ${b.colorLight};\n`;
                 css += `  --color-${b.id}-border: ${b.colorBorder};\n`;
+            });
+            promoBuckets.forEach(b => {
+                css += `  --color-promo-${b.id}: ${b.color || '#64748b'};\n`;
+                css += `  --color-promo-${b.id}-light: ${b.colorLight || '#f8fafc'};\n`;
+                css += `  --color-promo-${b.id}-border: ${b.colorBorder || '#cbd5e1'};\n`;
             });
             css += '}\n';
             
@@ -1186,6 +1290,18 @@
                 }
                 `;
             });
+
+            promoBuckets.forEach(b => {
+                css += `
+                .band-promotion-${b.id} .slot-box.drag-over,
+                .band-promotion-${b.id} .plus-slot.drag-over {
+                    border-color: var(--color-promo-${b.id}-border) !important;
+                    background-color: var(--color-promo-${b.id}-light) !important;
+                    color: var(--color-promo-${b.id}) !important;
+                }
+                `;
+            });
+
             styleEl.innerHTML = css;
             document.head.appendChild(styleEl);
 
@@ -1228,7 +1344,8 @@
         function getCandidatesHash(candidates, config) {
             let candStr = candidates.map(c => c.name + '|' + c.counsellor + '|' + (c.email || '') + '|' + (c.comment || '') + '|' + (c.photo ? 'hasphoto' : '')).sort().join(';');
             let configStr = config.bands.map(b => `${b.id}:${b.hasLimit}:${b.defaultCapacity}`).join(';');
-            let promoStr = `${config.enablePromotions || false}:${config.defaultExpectedSpaces || 3}:${config.maxExpectedSpaces || 10}`;
+            let pBuckets = (config.promotionBuckets || config.promotionBands || []);
+            let promoStr = `${config.enablePromotions || false}:${config.promotionMode || ''}:${pBuckets.map(b => `${b.id}:${b.name}:${b.hasLimit}:${b.defaultCapacity}:${b.description}`).join(';')}:${config.defaultExpectedSpaces || ''}`;
             let str = candStr + '||' + configStr + '||' + promoStr;
             let hash = 0;
             for (let i = 0; i < str.length; i++) {
@@ -1255,17 +1372,38 @@
 
                         // Ensure all structures are backwards-compatible
                         if (!parsed.state.starredCandidateIds) parsed.state.starredCandidateIds = [];
-                        if (!parsed.state.promotionLadderExpected) {
-                            parsed.state.promotionLadderExpected = [];
-                        } else {
-                            parsed.state.promotionLadderExpected = parsed.state.promotionLadderExpected.map(refreshCand);
-                        }
-                        if (!parsed.state.promotionLadderPotential) {
-                            parsed.state.promotionLadderPotential = [];
-                        } else {
-                            parsed.state.promotionLadderPotential = parsed.state.promotionLadderPotential.map(refreshCand);
-                        }
-                        if (parsed.state.promotionCapacityExpected === undefined) parsed.state.promotionCapacityExpected = (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3);
+                        if (!parsed.state.promotionBands) parsed.state.promotionBands = {};
+                        if (!parsed.state.promotionCapacities) parsed.state.promotionCapacities = {};
+                        
+                        promoBuckets.forEach(b => {
+                            if (!parsed.state.promotionBands[b.id]) {
+                                if (b.id === 'expected' && parsed.state.promotionLadderExpected) {
+                                    parsed.state.promotionBands[b.id] = parsed.state.promotionLadderExpected.map(refreshCand);
+                                } else if (b.id === 'potential' && parsed.state.promotionLadderPotential) {
+                                    parsed.state.promotionBands[b.id] = parsed.state.promotionLadderPotential.map(refreshCand);
+                                } else {
+                                    parsed.state.promotionBands[b.id] = [];
+                                }
+                            } else {
+                                parsed.state.promotionBands[b.id] = parsed.state.promotionBands[b.id].map(refreshCand);
+                            }
+                            
+                            if (b.hasLimit) {
+                                if (parsed.state.promotionCapacities[b.id] === undefined) {
+                                    if (b.id === 'expected' && parsed.state.promotionCapacityExpected !== undefined) {
+                                        parsed.state.promotionCapacities[b.id] = parsed.state.promotionCapacityExpected;
+                                    } else {
+                                        parsed.state.promotionCapacities[b.id] = (b.defaultCapacity !== undefined ? b.defaultCapacity : 3);
+                                    }
+                                }
+                            }
+                        });
+
+                        // Keep legacy fields synced for compatibility
+                        parsed.state.promotionLadderExpected = parsed.state.promotionBands['expected'] || [];
+                        parsed.state.promotionLadderPotential = parsed.state.promotionBands['potential'] || [];
+                        parsed.state.promotionCapacityExpected = parsed.state.promotionCapacities['expected'] !== undefined ? parsed.state.promotionCapacities['expected'] : (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3);
+
                         return parsed.state;
                     }
                 } catch (e) {
@@ -1284,19 +1422,37 @@
                 }
             });
 
+            const promoBandsState = {};
+            const promoCapacities = {};
+            promoBuckets.forEach(b => {
+                promoBandsState[b.id] = [];
+                if (b.hasLimit) {
+                    promoCapacities[b.id] = (b.defaultCapacity !== undefined ? b.defaultCapacity : 3);
+                }
+            });
+
             return {
                 unranked: sortedList,
                 bands: bandsState,
                 capacities: capacities,
                 discussingCandidateId: sortedList.length > 0 ? sortedList[0].id : null,
                 starredCandidateIds: [],
-                promotionLadderExpected: [],
-                promotionLadderPotential: [],
-                promotionCapacityExpected: (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3)
+                promotionBands: promoBandsState,
+                promotionCapacities: promoCapacities,
+                promotionLadderExpected: promoBandsState['expected'] || [],
+                promotionLadderPotential: promoBandsState['potential'] || [],
+                promotionCapacityExpected: promoCapacities['expected'] !== undefined ? promoCapacities['expected'] : (CONFIG.defaultExpectedSpaces !== undefined ? CONFIG.defaultExpectedSpaces : 3)
             };
         }
 
         function saveState() {
+            if (state.promotionBands) {
+                state.promotionLadderExpected = state.promotionBands['expected'] || [];
+                state.promotionLadderPotential = state.promotionBands['potential'] || [];
+            }
+            if (state.promotionCapacities && state.promotionCapacities['expected'] !== undefined) {
+                state.promotionCapacityExpected = state.promotionCapacities['expected'];
+            }
             const payload = {
                 hash: getCandidatesHash(allCandidates, CONFIG),
                 state: state
@@ -1427,7 +1583,7 @@
 
         // Core Calibration Operations
         function moveCandidate(candidateId, targetBandId, targetIndex) {
-            if (targetBandId === 'promotion-expected' || targetBandId === 'promotion-potential') {
+            if (targetBandId && (targetBandId.startsWith('promotion-') || promoBuckets.some(b => b.id === targetBandId))) {
                 moveCandidatePromotion(candidateId, targetBandId, targetIndex);
                 return;
             }
@@ -1546,6 +1702,9 @@
             
             // Reset promotion structures
             state.starredCandidateIds = [];
+            promoBuckets.forEach(b => {
+                state.promotionBands[b.id] = [];
+            });
             state.promotionLadderExpected = [];
             state.promotionLadderPotential = [];
             
@@ -1622,6 +1781,32 @@
                 `;
                 renderBandAllocationsConfig();
             } else {
+                let configRowsHtml = '';
+                const limitedBuckets = promoBuckets.filter(b => b.hasLimit);
+                
+                if (limitedBuckets.length > 0) {
+                    limitedBuckets.forEach(b => {
+                        const cap = state.promotionCapacities[b.id] !== undefined ? state.promotionCapacities[b.id] : (b.defaultCapacity || 0);
+                        const maxCap = b.maxCapacity || 20;
+                        configRowsHtml += `
+                            <div class="config-row">
+                                <label for="input-promotion-${b.id}-slots" title="${escapeHtml(b.name)}">${escapeHtml(b.shortName || b.name)} Spaces:</label>
+                                <div class="input-number-wrapper">
+                                    <button onclick="changePromotionCapacity('${b.id}', -1)">-</button>
+                                    <input type="number" id="input-promotion-${b.id}-slots" min="0" max="${maxCap}" value="${cap}" readonly>
+                                    <button onclick="changePromotionCapacity('${b.id}', 1)">+</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    configRowsHtml = `
+                        <div style="font-size: 12px; color: var(--text-secondary); padding: 4px 0 8px;">
+                            All promotion buckets are currently uncapped.
+                        </div>
+                    `;
+                }
+
                 scrollContainer.innerHTML = `
                     <div class="sidebar-section">
                         <div class="sidebar-section-header">
@@ -1630,14 +1815,7 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="11 17 6 12 11 7"></polyline><polyline points="18 17 13 12 18 7"></polyline></svg>
                             </button>
                         </div>
-                        <div class="config-row">
-                            <label for="input-promotion-expected-slots">Expected Spaces:</label>
-                            <div class="input-number-wrapper">
-                                <button onclick="changePromotionCapacity('expected', -1)">-</button>
-                                <input type="number" id="input-promotion-expected-slots" min="0" max="${CONFIG.maxExpectedSpaces || 10}" value="${state.promotionCapacityExpected}" readonly>
-                                <button onclick="changePromotionCapacity('expected', 1)">+</button>
-                            </div>
-                        </div>
+                        ${configRowsHtml}
                     </div>
                     
                     <div class="sidebar-section">
@@ -1699,62 +1877,64 @@
                     `;
                 });
             } else {
-                const showExpected = (state.promotionCapacityExpected > 0);
-                if (showExpected) {
+                const twoTier = isTwoTierPromoMode();
+                const expCapacity = state.promotionCapacities['expected'] !== undefined ? state.promotionCapacities['expected'] : state.promotionCapacityExpected;
+                const showExpected = !twoTier || (expCapacity > 0);
+                
+                promoBuckets.forEach((b, idx) => {
+                    if (twoTier && b.id === 'expected' && !showExpected) {
+                        return; // Hidden when Expected capacity is 0
+                    }
+                    
+                    const isGoldenPot = (twoTier && b.id === 'potential' && !showExpected);
+                    
+                    const borderColor = isGoldenPot ? '#f59e0b' : (b.colorBorder || '#94a3b8');
+                    const bgColor = isGoldenPot ? '#fffbeb' : (b.colorLight || '#f8fafc');
+                    const badgeBg = isGoldenPot ? '#eab308' : (b.color || '#94a3b8');
+                    const badgeColor = '#ffffff';
+                    
+                    let badgeIcon = b.badgeIcon;
+                    if (!badgeIcon) {
+                        if (twoTier) {
+                            badgeIcon = (b.id === 'expected' || isGoldenPot) ? '&#9733;' : '&#9734;';
+                        } else {
+                            badgeIcon = idx === 0 ? '&#9733;' : (idx === 1 ? '&#9734;' : '&#9675;');
+                        }
+                    }
+                    
+                    const borderRightColor = isGoldenPot ? '#fef08a' : (b.colorBorder ? b.colorLight : '#e2e8f0');
+                    const counterBg = isGoldenPot ? '#fef08a; border-color: #f59e0b;' : `${b.colorLight || '#e2e8f0'}; border-color: ${b.colorBorder || '#94a3b8'}; color: ${b.color || '#334155'};`;
+                    
+                    let desc = b.description;
+                    if (isGoldenPot) {
+                        desc = 'Candidates recommended for potential promotion space (uncapped). Expected promotions row is currently disabled.';
+                    }
+                    
+                    const counterId = `count-promotion-${b.id}`;
+                    const slotsId = `slots-promotion-${b.id}`;
+                    const cap = state.promotionCapacities[b.id] !== undefined ? state.promotionCapacities[b.id] : (b.defaultCapacity || 0);
+                    const initialCountText = b.hasLimit ? `0 / ${cap}` : `0`;
+                    
                     html += `
-                        <section class="band-section band-promotion-expected" data-band-id="promotion-expected" style="border-color: #f59e0b; background-color: #fffbeb;">
-                            <div class="band-info" style="border-right-color: #fef08a;">
+                        <section class="band-section band-promotion-${b.id}" data-band-id="promotion-${b.id}" style="border-color: ${borderColor}; background-color: ${bgColor};">
+                            <div class="band-info" style="border-right-color: ${borderRightColor};">
                                 <div>
                                     <div class="band-header">
-                                        <span class="band-badge badge-promotion-expected" style="background: #eab308; color: #ffffff;">&#9733;</span>
-                                        <h2>Expected Promotions</h2>
+                                        <span class="band-badge badge-promotion-${b.id}" style="background: ${badgeBg}; color: ${badgeColor};">${badgeIcon}</span>
+                                        <h2>${escapeHtml(b.name)}</h2>
                                     </div>
-                                    <p class="band-desc">Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.</p>
+                                    <p class="band-desc">${escapeHtml(desc)}</p>
                                 </div>
                                 <div class="band-counter">
-                                    Allocated: <span class="band-counter-val" id="count-promotion-expected" style="background: #fef08a; border-color: #f59e0b;">0 / 3</span>
+                                    Allocated: <span class="band-counter-val" id="${counterId}" style="background: ${counterBg}">${initialCountText}</span>
                                 </div>
                             </div>
-                            <div class="band-slots" id="slots-promotion-expected">
+                            <div class="${b.hasLimit ? 'band-slots' : 'band-slots-unlimited'}" id="${slotsId}">
                                 <!-- Slots injected dynamically -->
                             </div>
                         </section>
                     `;
-                }
-
-                const potStyle = showExpected 
-                    ? 'border-color: #94a3b8; background-color: #f8fafc;' 
-                    : 'border-color: #f59e0b; background-color: #fffbeb;';
-                const potBadgeStyle = showExpected 
-                    ? 'background: #94a3b8; color: #ffffff;' 
-                    : 'background: #eab308; color: #ffffff;';
-                const potBadgeIcon = showExpected ? '&#9734;' : '&#9733;';
-                const potBorderRightColor = showExpected ? '#e2e8f0' : '#fef08a';
-                const potCounterBackground = showExpected ? '#e2e8f0; border-color: #94a3b8;' : '#fef08a; border-color: #f59e0b;';
-                
-                const potDesc = showExpected 
-                    ? 'Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.' 
-                    : 'Candidates recommended for potential promotion space (uncapped). Expected promotions row is currently disabled.';
-
-                html += `
-                    <section class="band-section band-promotion-potential" data-band-id="promotion-potential" style="${potStyle}">
-                        <div class="band-info" style="border-right-color: ${potBorderRightColor};">
-                            <div>
-                                <div class="band-header">
-                                    <span class="band-badge badge-promotion-potential" style="${potBadgeStyle}">${potBadgeIcon}</span>
-                                    <h2>Potential Promotions</h2>
-                                </div>
-                                <p class="band-desc">${potDesc}</p>
-                            </div>
-                            <div class="band-counter">
-                                Allocated: <span class="band-counter-val" id="count-promotion-potential" style="background: ${potCounterBackground}">0</span>
-                            </div>
-                        </div>
-                        <div class="band-slots-unlimited" id="slots-promotion-potential">
-                            <!-- Slots injected dynamically -->
-                        </div>
-                    </section>
-                `;
+                });
             }
             
             container.innerHTML = html;
@@ -1779,9 +1959,9 @@
                     <div class="unranked-list-scroll" id="unranked-list"></div>
                 `;
             } else {
-                const showAutoFill = (state.promotionCapacityExpected > 0);
-                const gridCols = showAutoFill ? '1fr 1fr' : '1fr';
-                const autoFillBtn = showAutoFill ? `<button class="discuss-btn" onclick="autoFillPromotion()" title="Auto-fill empty Expected slots with top-performing candidates" style="border-color: #ca8a04; color: #ca8a04; background: #ffffff;">Auto-Fill</button>` : '';
+                const hasLimitedWithSlots = promoBuckets.some(b => b.hasLimit && (state.promotionCapacities[b.id] || 0) > 0);
+                const gridCols = hasLimitedWithSlots ? '1fr 1fr' : '1fr';
+                const autoFillBtn = hasLimitedWithSlots ? `<button class="discuss-btn" onclick="autoFillPromotion()" title="Auto-fill empty limited slots with top-performing candidates" style="border-color: #ca8a04; color: #ca8a04; background: #ffffff;">Auto-Fill</button>` : '';
                 
                 sidebar.innerHTML = `
                     <div class="sidebar-header-right">
@@ -1794,7 +1974,7 @@
                             </div>
                             <div class="discuss-active-actions" style="grid-template-columns: ${gridCols};">
                                 ${autoFillBtn}
-                                <button class="discuss-btn" onclick="clearPromotionLadder()" title="Remove all candidates from promotion" style="border-color: #ef4444; color: #ef4444; background: #ffffff; ${!showAutoFill ? 'grid-column: span 1;' : ''}">Clear Ladder</button>
+                                <button class="discuss-btn" onclick="clearPromotionLadder()" title="Remove all candidates from promotion" style="border-color: #ef4444; color: #ef4444; background: #ffffff; ${!hasLimitedWithSlots ? 'grid-column: span 1;' : ''}">Clear Ladder</button>
                             </div>
                         </div>
                         
@@ -1835,17 +2015,38 @@
             const avatar = getAvatarHtml(candidate, candidate.id);
             const isStarred = state.starredCandidateIds.includes(candidate.id);
             let starredClass = isStarred ? 'starred' : '';
-            if (isStarred && bandId === 'promotion-expected') {
-                starredClass = 'starred promo-expected';
-            } else if (isStarred && bandId === 'promotion-potential') {
-                starredClass = (state.promotionCapacityExpected === 0) ? 'starred promo-expected' : 'starred promo-potential';
+            let customCardStyle = '';
+            
+            const isPromotionView = (currentView === 'promotion');
+            const isPromoBand = bandId && bandId.startsWith('promotion-');
+            const promoBucketId = isPromoBand ? bandId.replace('promotion-', '') : null;
+            const currentBucket = promoBucketId ? promoBuckets.find(b => b.id === promoBucketId) : null;
+            
+            if (isStarred && isPromoBand && currentBucket) {
+                if (isTwoTierPromoMode()) {
+                    const expCap = state.promotionCapacities['expected'] !== undefined ? state.promotionCapacities['expected'] : state.promotionCapacityExpected;
+                    if (promoBucketId === 'expected') {
+                        starredClass = 'starred promo-expected';
+                    } else if (promoBucketId === 'potential') {
+                        starredClass = (expCap === 0) ? 'starred promo-expected' : 'starred promo-potential';
+                    }
+                } else {
+                    starredClass = `starred promo-${currentBucket.id}`;
+                    customCardStyle = `border-color: ${currentBucket.colorBorder || '#f59e0b'}; background: linear-gradient(135deg, ${currentBucket.colorLight || '#fffbeb'} 0%, #ffffff 100%);`;
+                }
             }
             
             // Build star button (only if enabled)
             let starBtn = '';
             if (CONFIG.enablePromotions) {
+                let starFill = '#eab308';
+                let starStroke = '#d97706';
+                if (isStarred && currentBucket && !isTwoTierPromoMode()) {
+                    starFill = currentBucket.color || '#eab308';
+                    starStroke = currentBucket.colorBorder || currentBucket.color || '#d97706';
+                }
                 const starSvg = isStarred ? `
-                    <svg viewBox="0 0 24 24" fill="#eab308" stroke="#d97706" stroke-width="2" class="star-icon">
+                    <svg viewBox="0 0 24 24" fill="${starFill}" stroke="${starStroke}" stroke-width="2" class="star-icon">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                     </svg>
                 ` : `
@@ -1860,8 +2061,7 @@
                 `;
             }
 
-            const isPromotionView = (currentView === 'promotion');
-            const showUnrank = isPromotionView ? (bandId === 'promotion-expected' || bandId === 'promotion-potential') : !!bandId;
+            const showUnrank = isPromotionView ? isPromoBand : !!bandId;
             const clickUnrank = isPromotionView ? `unrankCandidatePromotion('${candidate.id}')` : `unrankCandidate('${candidate.id}')`;
             
             const unrankBtn = !showUnrank ? '' : `
@@ -1873,6 +2073,7 @@
             const isActiveDiscuss = (!isPromotionView && !bandId && state.discussingCandidateId === candidate.id) ? 'active-discussion' : '';
             const clickAction = (!isPromotionView && !bandId) ? `onclick="setDiscussingCandidate('${candidate.id}')"` : '';
             const dropTargetBand = isPromotionView ? (bandId || '') : (bandId || '');
+            const styleAttr = customCardStyle ? `style="${customCardStyle}"` : '';
             
             return `
                 <div class="candidate-card ${starredClass} ${isActiveDiscuss}" 
@@ -1884,7 +2085,8 @@
                      ondragenter="handleDragEnter(event, this)"
                      ondragleave="handleDragLeave(event, this)"
                      ondrop="handleDrop(event, '${dropTargetBand}', ${index})"
-                     ${clickAction}>
+                     ${clickAction}
+                     ${styleAttr}>
                     ${avatar}
                     <div class="candidate-details">
                         <div class="candidate-name" title="${escapeHtml(candidate.name)}">${escapeHtml(candidate.name)}</div>
@@ -2050,44 +2252,59 @@
             const candidate = allCandidates.find(c => c.id === candidateId);
             if (!candidate) return;
             
-            const expectedCap = state.promotionCapacityExpected;
+            const twoTier = isTwoTierPromoMode();
 
             if (index !== -1) {
                 // Unstar (remove star)
                 state.starredCandidateIds.splice(index, 1);
                 
-                // Remove from promotionLadderExpected if present
-                const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
-                if (expIdx !== -1) {
-                    state.promotionLadderExpected.splice(expIdx, 1);
-                } else {
-                    // Remove from promotionLadderPotential if present
-                    const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
-                    if (potIdx !== -1) {
-                        state.promotionLadderPotential.splice(potIdx, 1);
+                // Remove from promotion buckets
+                promoBuckets.forEach(b => {
+                    const list = state.promotionBands[b.id] || [];
+                    const cIdx = list.findIndex(c => c.id === candidateId);
+                    if (cIdx !== -1) {
+                        list.splice(cIdx, 1);
                     }
-                }
-                // Cascade to fill the Expected gaps from Potential
+                });
                 cascadeOverflowPromotion();
             } else {
                 // Star
                 state.starredCandidateIds.push(candidateId);
-                
                 const newGrade = getPerformanceGrade(candidate);
                 
-                // Insert into Expected?
-                if (state.promotionLadderExpected.length < expectedCap) {
-                    let insertIdx = state.promotionLadderExpected.findIndex(c => newGrade < getPerformanceGrade(c));
-                    if (insertIdx === -1) insertIdx = state.promotionLadderExpected.length;
-                    state.promotionLadderExpected.splice(insertIdx, 0, candidate);
+                if (twoTier) {
+                    const expCap = state.promotionCapacities['expected'] !== undefined ? state.promotionCapacities['expected'] : state.promotionCapacityExpected;
+                    const expList = state.promotionBands['expected'] || [];
+                    const potList = state.promotionBands['potential'] || [];
+                    
+                    if (expList.length < expCap) {
+                        let insertIdx = expList.findIndex(c => newGrade < getPerformanceGrade(c));
+                        if (insertIdx === -1) insertIdx = expList.length;
+                        expList.splice(insertIdx, 0, candidate);
+                    } else {
+                        let insertIdx = potList.findIndex(c => newGrade < getPerformanceGrade(c));
+                        if (insertIdx === -1) insertIdx = potList.length;
+                        potList.splice(insertIdx, 0, candidate);
+                    }
                 } else {
-                    // Expected is full (or capacity is 0), so it goes straight to Potential (uncapped)
-                    let insertIdx = state.promotionLadderPotential.findIndex(c => newGrade < getPerformanceGrade(c));
-                    if (insertIdx === -1) insertIdx = state.promotionLadderPotential.length;
-                    state.promotionLadderPotential.splice(insertIdx, 0, candidate);
+                    // Place into the first bucket with capacity or the first uncapped bucket
+                    let targetBucket = null;
+                    for (const b of promoBuckets) {
+                        const list = state.promotionBands[b.id] || [];
+                        if (!b.hasLimit || list.length < (state.promotionCapacities[b.id] || 0)) {
+                            targetBucket = b;
+                            break;
+                        }
+                    }
+                    if (!targetBucket) {
+                        targetBucket = promoBuckets[promoBuckets.length - 1];
+                    }
+                    const list = state.promotionBands[targetBucket.id] || [];
+                    let insertIdx = list.findIndex(c => newGrade < getPerformanceGrade(c));
+                    if (insertIdx === -1) insertIdx = list.length;
+                    list.splice(insertIdx, 0, candidate);
                 }
                 
-                // Cascade in case Expected overflow is needed
                 cascadeOverflowPromotion();
             }
             
@@ -2097,68 +2314,74 @@
 
         // Promotion view renderers
         function renderPromotionLadder() {
-            // Render Expected (if capacity > 0)
-            const expCapacity = state.promotionCapacityExpected;
-            const expContainer = document.getElementById('slots-promotion-expected');
-            const showExpected = (expCapacity > 0);
+            const twoTier = isTwoTierPromoMode();
+            const expCapacity = state.promotionCapacities['expected'] !== undefined ? state.promotionCapacities['expected'] : state.promotionCapacityExpected;
+            const showExpected = !twoTier || (expCapacity > 0);
             
-            if (expContainer) {
-                if (showExpected) {
-                    let html = '';
-                    for (let i = 0; i < expCapacity; i++) {
-                        if (i < state.promotionLadderExpected.length) {
-                            html += renderCard(state.promotionLadderExpected[i], 'promotion-expected', i);
-                        } else {
-                            html += `
-                                <div class="slot-box" 
-                                     style="border-color: #fcd34d; background-color: #fffbeb;"
-                                     ondragover="handleDragOver(event)" 
-                                     ondragenter="handleDragEnter(event, this)"
-                                     ondragleave="handleDragLeave(event, this)"
-                                     ondrop="handleDrop(event, 'promotion-expected', ${i})">
-                                    <span class="slot-rank-indicator" style="color: #ca8a04;">#${i + 1}</span>
-                                    Drop to Rank
-                                </div>
-                            `;
+            promoBuckets.forEach(b => {
+                const container = document.getElementById(`slots-promotion-${b.id}`);
+                const countEl = document.getElementById(`count-promotion-${b.id}`);
+                if (!container) return;
+                
+                const list = state.promotionBands[b.id] || [];
+                
+                if (b.hasLimit) {
+                    const cap = state.promotionCapacities[b.id] !== undefined ? state.promotionCapacities[b.id] : (b.defaultCapacity || 0);
+                    if (cap > 0) {
+                        let html = '';
+                        for (let i = 0; i < cap; i++) {
+                            if (i < list.length) {
+                                html += renderCard(list[i], `promotion-${b.id}`, i);
+                            } else {
+                                html += `
+                                    <div class="slot-box" 
+                                         style="border-color: ${b.colorBorder || '#fcd34d'}; background-color: ${b.colorLight || '#fffbeb'};"
+                                         ondragover="handleDragOver(event)" 
+                                         ondragenter="handleDragEnter(event, this)"
+                                         ondragleave="handleDragLeave(event, this)"
+                                         ondrop="handleDrop(event, 'promotion-${b.id}', ${i})">
+                                        <span class="slot-rank-indicator" style="color: ${b.color || '#ca8a04'};">#${i + 1}</span>
+                                        Drop to Rank
+                                    </div>
+                                `;
+                            }
                         }
+                        container.innerHTML = html;
+                        if (countEl) countEl.innerText = `${list.length} / ${cap}`;
+                    } else {
+                        container.innerHTML = '';
+                        if (countEl) countEl.innerText = `0 / 0`;
                     }
-                    expContainer.innerHTML = html;
-                    document.getElementById('count-promotion-expected').innerText = `${state.promotionLadderExpected.length} / ${expCapacity}`;
                 } else {
-                    expContainer.innerHTML = '';
+                    let html = '';
+                    list.forEach((candidate, idx) => {
+                        html += renderCard(candidate, `promotion-${b.id}`, idx);
+                    });
+                    
+                    const isGoldenPot = (twoTier && b.id === 'potential' && !showExpected);
+                    const boxBorderColor = isGoldenPot ? '#fcd34d' : (b.colorBorder || '#cbd5e1');
+                    const boxBgColor = isGoldenPot ? '#fffbeb' : (b.colorLight || '#f8fafc');
+                    const textCol = isGoldenPot ? '#ca8a04' : (b.color || '#64748b');
+                    
+                    // Append trailing plus-slot dropzone
+                    html += `
+                        <div class="plus-slot" 
+                             style="border-color: ${boxBorderColor}; background-color: ${boxBgColor}; color: ${textCol};"
+                             ondragover="handleDragOver(event)" 
+                             ondragenter="handleDragEnter(event, this)"
+                             ondragleave="handleDragLeave(event, this)"
+                             ondrop="handleDrop(event, 'promotion-${b.id}', ${list.length})">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: ${textCol};">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Drop to Add (#${list.length + 1})
+                        </div>
+                    `;
+                    container.innerHTML = html;
+                    if (countEl) countEl.innerText = `${list.length}`;
                 }
-            }
-
-            // Render Potential (uncapped list style)
-            const potContainer = document.getElementById('slots-promotion-potential');
-            if (potContainer) {
-                let html = '';
-                state.promotionLadderPotential.forEach((candidate, idx) => {
-                    html += renderCard(candidate, 'promotion-potential', idx);
-                });
-                
-                const boxBorderColor = showExpected ? '#cbd5e1' : '#fcd34d';
-                const boxBgColor = showExpected ? '#f8fafc' : '#fffbeb';
-                const textCol = showExpected ? '#64748b' : '#ca8a04';
-                
-                // Append trailing plus-slot dropzone
-                html += `
-                    <div class="plus-slot" 
-                         style="border-color: ${boxBorderColor}; background-color: ${boxBgColor}; color: ${textCol};"
-                         ondragover="handleDragOver(event)" 
-                         ondragenter="handleDragEnter(event, this)"
-                         ondragleave="handleDragLeave(event, this)"
-                         ondrop="handleDrop(event, 'promotion-potential', ${state.promotionLadderPotential.length})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: ${textCol};">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Drop to Add (#${state.promotionLadderPotential.length + 1})
-                    </div>
-                `;
-                potContainer.innerHTML = html;
-                document.getElementById('count-promotion-potential').innerText = `${state.promotionLadderPotential.length}`;
-            }
+            });
         }
 
         function renderCandidatePool() {
@@ -2207,76 +2430,104 @@
         }
 
         // Promotion Board specific state adjusters
-        function changePromotionCapacity(type, delta) {
-            if (type === 'expected') {
-                const maxCap = CONFIG.maxExpectedSpaces || 10;
-                const newVal = state.promotionCapacityExpected + delta;
-                if (newVal < 0 || newVal > maxCap) return;
-                
+        function changePromotionCapacity(typeOrId, delta) {
+            const bucketId = (typeOrId === 'expected' && !promoBuckets.some(b => b.id === 'expected')) ? promoBuckets[0].id : typeOrId;
+            const bucket = promoBuckets.find(b => b.id === bucketId);
+            if (!bucket || !bucket.hasLimit) return;
+            
+            const maxCap = bucket.maxCapacity || 20;
+            const currentCap = state.promotionCapacities[bucketId] !== undefined ? state.promotionCapacities[bucketId] : (bucket.defaultCapacity || 0);
+            const newVal = currentCap + delta;
+            if (newVal < 0 || newVal > maxCap) return;
+            
+            state.promotionCapacities[bucketId] = newVal;
+            if (bucketId === 'expected') {
                 state.promotionCapacityExpected = newVal;
-                const inputEl = document.getElementById('input-promotion-expected-slots');
-                if (inputEl) inputEl.value = newVal;
-                
-                // Re-render skeletons to hide/show Expected row or update styles
-                renderBoardSkeleton();
-                renderRightSidebarSkeleton();
             }
+            const inputEl = document.getElementById(`input-promotion-${bucketId}-slots`);
+            if (inputEl) inputEl.value = newVal;
             
             cascadeOverflowPromotion();
             saveState();
+            
+            // Re-render skeletons to hide/show Expected row or update styles
+            renderBoardSkeleton();
+            renderRightSidebarSkeleton();
             renderApp();
         }
 
         function cascadeOverflowPromotion() {
-            const expectedCap = state.promotionCapacityExpected;
+            const twoTier = isTwoTierPromoMode();
+            if (twoTier) {
+                const expectedCap = state.promotionCapacities['expected'] !== undefined ? state.promotionCapacities['expected'] : state.promotionCapacityExpected;
+                const expList = state.promotionBands['expected'] || [];
+                const potList = state.promotionBands['potential'] || [];
 
-            // 1. Downward cascade: Expected -> Potential
-            while (state.promotionLadderExpected.length > expectedCap) {
-                const popped = state.promotionLadderExpected.pop();
-                state.promotionLadderPotential.unshift(popped);
+                // 1. Downward cascade: Expected -> Potential
+                while (expList.length > expectedCap) {
+                    const popped = expList.pop();
+                    potList.unshift(popped);
+                }
+
+                // 2. Upward cascade: Potential -> Expected
+                while (expList.length < expectedCap && potList.length > 0) {
+                    const pulled = potList.shift();
+                    expList.push(pulled);
+                }
+            } else {
+                // Downward sequential cascade for limited buckets
+                for (let i = 0; i < promoBuckets.length - 1; i++) {
+                    const currentBucket = promoBuckets[i];
+                    const nextBucket = promoBuckets[i + 1];
+                    if (currentBucket.hasLimit) {
+                        const currentCap = state.promotionCapacities[currentBucket.id] || 0;
+                        const currentList = state.promotionBands[currentBucket.id] || [];
+                        const nextList = state.promotionBands[nextBucket.id] || [];
+                        while (currentList.length > currentCap) {
+                            const popped = currentList.pop();
+                            nextList.unshift(popped);
+                        }
+                    }
+                }
             }
 
-            // 2. Upward cascade: Potential -> Expected
-            while (state.promotionLadderExpected.length < expectedCap && state.promotionLadderPotential.length > 0) {
-                const pulled = state.promotionLadderPotential.shift();
-                state.promotionLadderExpected.push(pulled);
-            }
+            // Sync legacy fields
+            state.promotionLadderExpected = state.promotionBands['expected'] || [];
+            state.promotionLadderPotential = state.promotionBands['potential'] || [];
         }
 
         function moveCandidatePromotion(candidateId, targetBandId, targetIndex) {
+            const promoBucketId = targetBandId.startsWith('promotion-') ? targetBandId.replace('promotion-', '') : targetBandId;
             let candidate = null;
             
-            const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
-            if (expIdx !== -1) {
-                candidate = state.promotionLadderExpected.splice(expIdx, 1)[0];
-            } else {
-                const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
-                if (potIdx !== -1) {
-                    candidate = state.promotionLadderPotential.splice(potIdx, 1)[0];
-                } else {
-                    // Dragged from Candidate Pool (not starred yet)
-                    candidate = allCandidates.find(c => c.id === candidateId);
-                    if (candidate && !state.starredCandidateIds.includes(candidateId)) {
-                        state.starredCandidateIds.push(candidateId);
-                    }
+            for (const b of promoBuckets) {
+                const list = state.promotionBands[b.id] || [];
+                const idx = list.findIndex(c => c.id === candidateId);
+                if (idx !== -1) {
+                    candidate = list.splice(idx, 1)[0];
+                    break;
+                }
+            }
+            
+            if (!candidate) {
+                // Dragged from Candidate Pool (not starred yet)
+                candidate = allCandidates.find(c => c.id === candidateId);
+                if (candidate && !state.starredCandidateIds.includes(candidateId)) {
+                    state.starredCandidateIds.push(candidateId);
                 }
             }
             
             if (!candidate) return;
             
-            if (targetBandId === 'promotion-expected') {
-                let actualIndex = targetIndex;
-                if (actualIndex > state.promotionLadderExpected.length || actualIndex === -1) {
-                    actualIndex = state.promotionLadderExpected.length;
-                }
-                state.promotionLadderExpected.splice(actualIndex, 0, candidate);
-            } else if (targetBandId === 'promotion-potential') {
-                let actualIndex = targetIndex;
-                if (actualIndex > state.promotionLadderPotential.length || actualIndex === -1) {
-                    actualIndex = state.promotionLadderPotential.length;
-                }
-                state.promotionLadderPotential.splice(actualIndex, 0, candidate);
+            if (!state.promotionBands[promoBucketId]) {
+                state.promotionBands[promoBucketId] = [];
             }
+            const targetList = state.promotionBands[promoBucketId];
+            let actualIndex = targetIndex;
+            if (actualIndex > targetList.length || actualIndex === -1) {
+                actualIndex = targetList.length;
+            }
+            targetList.splice(actualIndex, 0, candidate);
             
             cascadeOverflowPromotion();
             
@@ -2285,13 +2536,12 @@
         }
 
         function unrankCandidatePromotion(candidateId) {
-            const expIdx = state.promotionLadderExpected.findIndex(c => c.id === candidateId);
-            if (expIdx !== -1) {
-                state.promotionLadderExpected.splice(expIdx, 1);
-            } else {
-                const potIdx = state.promotionLadderPotential.findIndex(c => c.id === candidateId);
-                if (potIdx !== -1) {
-                    state.promotionLadderPotential.splice(potIdx, 1);
+            for (const b of promoBuckets) {
+                const list = state.promotionBands[b.id] || [];
+                const idx = list.findIndex(c => c.id === candidateId);
+                if (idx !== -1) {
+                    list.splice(idx, 1);
+                    break;
                 }
             }
             
@@ -2307,28 +2557,42 @@
         }
 
         function autoFillPromotion() {
-            const expectedCap = state.promotionCapacityExpected;
-            if (expectedCap <= 0) return;
+            const limitedWithSpace = promoBuckets.filter(b => {
+                if (!b.hasLimit) return false;
+                const cap = state.promotionCapacities[b.id] || 0;
+                const len = (state.promotionBands[b.id] || []).length;
+                return cap > len;
+            });
+            if (limitedWithSpace.length === 0) return;
             
             // Get unstarred candidates
             const available = allCandidates.filter(c => !state.starredCandidateIds.includes(c.id));
             available.sort((a, b) => getPerformanceGrade(a) - getPerformanceGrade(b));
             
-            while (state.promotionLadderExpected.length < expectedCap && available.length > 0) {
-                const candidate = available.shift();
-                state.starredCandidateIds.push(candidate.id);
-                state.promotionLadderExpected.push(candidate);
-            }
+            limitedWithSpace.forEach(b => {
+                const cap = state.promotionCapacities[b.id] || 0;
+                const list = state.promotionBands[b.id] || [];
+                while (list.length < cap && available.length > 0) {
+                    const candidate = available.shift();
+                    state.starredCandidateIds.push(candidate.id);
+                    list.push(candidate);
+                }
+                list.sort((a, b) => getPerformanceGrade(a) - getPerformanceGrade(b));
+            });
             
-            state.promotionLadderExpected.sort((a, b) => getPerformanceGrade(a) - getPerformanceGrade(b));
+            cascadeOverflowPromotion();
             saveState();
             renderApp();
         }
 
         function clearPromotionLadder() {
-            if (state.promotionLadderExpected.length === 0 && state.promotionLadderPotential.length === 0) return;
+            const hasAny = promoBuckets.some(b => (state.promotionBands[b.id] || []).length > 0);
+            if (!hasAny && state.starredCandidateIds.length === 0) return;
             if (!confirm("Are you sure you want to clear the promotion ladders? Candidates will lose their starred promotion status.")) return;
             
+            promoBuckets.forEach(b => {
+                state.promotionBands[b.id] = [];
+            });
             state.promotionLadderExpected = [];
             state.promotionLadderPotential = [];
             state.starredCandidateIds = [];
@@ -2346,11 +2610,13 @@
                     counts[counsellor] = { 
                         performance: {}, 
                         unranked: 0,
-                        expected: 0,
-                        potential: 0
+                        promo: {}
                     };
                     CONFIG.bands.forEach(b => {
                         counts[counsellor].performance[b.id] = 0;
+                    });
+                    promoBuckets.forEach(b => {
+                        counts[counsellor].promo[b.id] = 0;
                     });
                 }
                 return counts[counsellor];
@@ -2360,16 +2626,16 @@
                 getCounsellorBucket(c.counsellor).unranked++;
             });
             CONFIG.bands.forEach(b => {
-                state.bands[b.id].forEach(c => {
+                (state.bands[b.id] || []).forEach(c => {
                     getCounsellorBucket(c.counsellor).performance[b.id]++;
                 });
             });
             
-            state.promotionLadderExpected.forEach(c => {
-                getCounsellorBucket(c.counsellor).expected++;
-            });
-            state.promotionLadderPotential.forEach(c => {
-                getCounsellorBucket(c.counsellor).potential++;
+            promoBuckets.forEach(b => {
+                const list = state.promotionBands[b.id] || [];
+                list.forEach(c => {
+                    getCounsellorBucket(c.counsellor).promo[b.id]++;
+                });
             });
             
             const sortedCounsellors = Object.keys(counts).sort();
@@ -2405,14 +2671,25 @@
                     `;
                 } else {
                     let pills = '';
-                    const showExpected = (state.promotionCapacityExpected > 0);
-                    if (data.expected > 0 && showExpected) {
-                        pills += `<span class="counsellor-pill" style="background-color: #ca8a04; color: #ffffff;" title="Expected Promotions: ${data.expected}">${data.expected} Expected</span> `;
-                    }
-                    if (data.potential > 0) {
-                        const potColor = showExpected ? '#94a3b8' : '#ca8a04';
-                        const potLabel = showExpected ? 'Potential' : 'Promoted';
-                        pills += `<span class="counsellor-pill" style="background-color: ${potColor}; color: #ffffff;" title="Potential Promotions: ${data.potential}">${data.potential} ${potLabel}</span> `;
+                    if (isTwoTierPromoMode()) {
+                        const showExpected = ((state.promotionCapacities['expected'] || 0) > 0);
+                        const expCount = data.promo['expected'] || 0;
+                        const potCount = data.promo['potential'] || 0;
+                        if (expCount > 0 && showExpected) {
+                            pills += `<span class="counsellor-pill" style="background-color: #ca8a04; color: #ffffff;" title="Expected Promotions: ${expCount}">${expCount} Expected</span> `;
+                        }
+                        if (potCount > 0) {
+                            const potColor = showExpected ? '#94a3b8' : '#ca8a04';
+                            const potLabel = showExpected ? 'Potential' : 'Promoted';
+                            pills += `<span class="counsellor-pill" style="background-color: ${potColor}; color: #ffffff;" title="Potential Promotions: ${potCount}">${potCount} ${potLabel}</span> `;
+                        }
+                    } else {
+                        promoBuckets.forEach(b => {
+                            const count = data.promo[b.id] || 0;
+                            if (count > 0) {
+                                pills += `<span class="counsellor-pill" style="background-color: ${b.color}; color: #ffffff;" title="${escapeHtml(b.name)}: ${count}">${count} ${escapeHtml(b.shortName || b.name)}</span> `;
+                            }
+                        });
                     }
                     
                     html += `
@@ -2442,19 +2719,31 @@
                     <div class="stat-item">Unranked Remaining: <span class="stat-val">${state.unranked.length}</span></div>
                 `;
             } else {
-                const expectedCount = state.promotionLadderExpected.length;
-                const potentialCount = state.promotionLadderPotential.length;
-                const showExpected = (state.promotionCapacityExpected > 0);
-                
-                if (showExpected) {
-                    container.innerHTML = `
-                        <div class="stat-item">Expected: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${expectedCount} / ${state.promotionCapacityExpected}</span></div>
-                        <div class="stat-item">Potential: <span class="stat-val" style="background: #f1f5f9; border-color: #cbd5e1; color: #475569;">${potentialCount}</span></div>
-                    `;
+                if (isTwoTierPromoMode()) {
+                    const expectedCount = (state.promotionBands['expected'] || []).length;
+                    const potentialCount = (state.promotionBands['potential'] || []).length;
+                    const expCap = state.promotionCapacities['expected'] || 0;
+                    const showExpected = (expCap > 0);
+                    
+                    if (showExpected) {
+                        container.innerHTML = `
+                            <div class="stat-item">Expected: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${expectedCount} / ${expCap}</span></div>
+                            <div class="stat-item">Potential: <span class="stat-val" style="background: #f1f5f9; border-color: #cbd5e1; color: #475569;">${potentialCount}</span></div>
+                        `;
+                    } else {
+                        container.innerHTML = `
+                            <div class="stat-item">Promoted: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${potentialCount}</span></div>
+                        `;
+                    }
                 } else {
-                    container.innerHTML = `
-                        <div class="stat-item">Promoted: <span class="stat-val" style="background: #fef08a; border-color: #f59e0b; color: #ca8a04;">${potentialCount}</span></div>
-                    `;
+                    let html = '';
+                    promoBuckets.forEach(b => {
+                        const count = (state.promotionBands[b.id] || []).length;
+                        const cap = state.promotionCapacities[b.id];
+                        const valStr = b.hasLimit ? `${count} / ${cap}` : `${count}`;
+                        html += `<div class="stat-item">${escapeHtml(b.shortName || b.name)}: <span class="stat-val" style="background: ${b.colorLight}; border-color: ${b.colorBorder}; color: ${b.color};">${valStr}</span></div>`;
+                    });
+                    container.innerHTML = html;
                 }
             }
         }
@@ -2496,41 +2785,65 @@
                 text += `=================================\n\n`;
                 
                 let globalIdx = 1;
-                const showExpected = (state.promotionCapacityExpected > 0);
-                if (showExpected) {
-                    text += `EXPECTED PROMOTIONS\n`;
-                    text += `-------------------\n`;
-                    if (state.promotionLadderExpected.length === 0) {
-                        text += `  (No candidates allocated)\n`;
+                if (isTwoTierPromoMode()) {
+                    const expCap = state.promotionCapacities['expected'] || 0;
+                    const showExpected = (expCap > 0);
+                    if (showExpected) {
+                        const expList = state.promotionBands['expected'] || [];
+                        text += `EXPECTED PROMOTIONS\n`;
+                        text += `-------------------\n`;
+                        if (expList.length === 0) {
+                            text += `  (No candidates allocated)\n`;
+                        } else {
+                            expList.forEach((c) => {
+                                text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                                globalIdx++;
+                            });
+                        }
+                        text += `\n`;
+                        
+                        const potList = state.promotionBands['potential'] || [];
+                        text += `POTENTIAL PROMOTIONS\n`;
+                        text += `--------------------\n`;
+                        if (potList.length === 0) {
+                            text += `  (No candidates allocated)\n`;
+                        } else {
+                            potList.forEach((c) => {
+                                text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                                globalIdx++;
+                            });
+                        }
                     } else {
-                        state.promotionLadderExpected.forEach((c) => {
-                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
-                            globalIdx++;
-                        });
-                    }
-                    text += `\n`;
-                    
-                    text += `POTENTIAL PROMOTIONS\n`;
-                    text += `--------------------\n`;
-                    if (state.promotionLadderPotential.length === 0) {
-                        text += `  (No candidates allocated)\n`;
-                    } else {
-                        state.promotionLadderPotential.forEach((c) => {
-                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
-                            globalIdx++;
-                        });
+                        const potList = state.promotionBands['potential'] || [];
+                        text += `PROMOTIONS (UNCAPPED)\n`;
+                        text += `---------------------\n`;
+                        if (potList.length === 0) {
+                            text += `  (No candidates allocated)\n`;
+                        } else {
+                            potList.forEach((c) => {
+                                text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                                globalIdx++;
+                            });
+                        }
                     }
                 } else {
-                    text += `PROMOTIONS (UNCAPPED)\n`;
-                    text += `---------------------\n`;
-                    if (state.promotionLadderPotential.length === 0) {
-                        text += `  (No candidates allocated)\n`;
-                    } else {
-                        state.promotionLadderPotential.forEach((c) => {
-                            text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
-                            globalIdx++;
-                        });
-                    }
+                    promoBuckets.forEach((b, idx) => {
+                        const bName = b.name.toUpperCase();
+                        text += `${bName}\n`;
+                        text += `-`.repeat(bName.length) + `\n`;
+                        const list = state.promotionBands[b.id] || [];
+                        if (list.length === 0) {
+                            text += `  (No candidates allocated)\n`;
+                        } else {
+                            list.forEach((c) => {
+                                text += `  ${globalIdx}. ${c.name} (Counsellor: ${c.counsellor})\n`;
+                                globalIdx++;
+                            });
+                        }
+                        if (idx < promoBuckets.length - 1) {
+                            text += `\n`;
+                        }
+                    });
                 }
             }
             

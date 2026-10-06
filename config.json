@@ -4,6 +4,30 @@
   "enablePromotions": true,
   "defaultExpectedSpaces": 3,
   "maxExpectedSpaces": 10,
+  "promotionBuckets": [
+    {
+      "id": "expected",
+      "name": "Expected Promotions",
+      "shortName": "Expected",
+      "description": "Highest priority candidates recommended for promotion. Set space to 0 to disable this row and manage all promotions in the uncapped row below.",
+      "hasLimit": true,
+      "defaultCapacity": 3,
+      "maxCapacity": 10,
+      "color": "#ca8a04",
+      "colorLight": "#fffbeb",
+      "colorBorder": "#f59e0b"
+    },
+    {
+      "id": "potential",
+      "name": "Potential Promotions",
+      "shortName": "Potential",
+      "description": "Candidates recommended for potential promotion space (uncapped). Excess candidates cascade here if Expected slots are full.",
+      "hasLimit": false,
+      "color": "#64748b",
+      "colorLight": "#f8fafc",
+      "colorBorder": "#94a3b8"
+    }
+  ],
   "bands": [
     {
       "id": "top-talent",
