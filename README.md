@@ -20,7 +20,7 @@ To make sharing as easy as possible, the application is compiled into a **single
 - **Large "Under Discussion" Dashboard**: A prominent, vertical profile card with a large photo/avatar, candidate name, counselor, email address, and optional appraisal comments/notes, centered at the top of the sidebar to keep the spotlight on the candidate currently being calibrated.
 - **Counsellor Breakdown**: Real-time aggregation of how many candidates each counselor has placed in each band, helping the panel spot distribution imbalances.
 - **LocalStorage State Preservation**: Automatically saves the board's state in your browser cache so progress is never lost on page refresh. The state is keyed to your candidate database, resetting automatically only if the input candidate list changes.
-- **100% Offline-Capable**: Generates beautiful initials-based profile pictures using linear gradients on the fly, eliminating external network requests.
+- **100% Offline-Capable**: Generates initials-based profile pictures with linear gradients on the fly, so no images are downloaded. Google Fonts load when a connection is available; offline, the app falls back to system fonts.
 - **Entra ID Profile Photos (Optional)**: Automatically fetches profile photos from Entra ID (Microsoft Graph) during compilation when an access token is provided, embedding them as base64 data URLs to maintain offline-first design.
 - **Export to Clipboard**: Copies the ordered list of candidates from the active view (Performance Board or Promotion Board) to the clipboard. The output is formatted with global 1-to-n indexing and includes counselor names, providing visual confirmation ("Copied!") on click.
 
@@ -29,8 +29,19 @@ To make sharing as easy as possible, the application is compiled into a **single
 ## File Structure
 
 - `candidates.csv`: The input database containing candidate names and their counsellors.
-- `generate.ps1`: The PowerShell compilation script.
-- `ladderater.html`: The generated standalone web application.
+- `config.json`: Board title, performance bands and promotion buckets.
+- `generate.ps1`: The PowerShell build script. It validates the inputs and inlines everything into one HTML file.
+- `src/index.html`, `src/styles.css`, `src/app.js`: The application source. Edit these files, not the generated output.
+- `ladderater.html`: The generated standalone web application. Do not edit it by hand; it is overwritten on every build.
+
+### Data & Storage Notes
+
+- Board progress is saved in the browser's `localStorage`, keyed to the candidate list and band configuration. Each distinct board keeps its own saved state, and other open tabs of the same board stay in sync.
+- Only candidate IDs are stored, so embedded profile photos never fill up browser storage. If storage is unavailable or full, the header badge changes to **"Progress is NOT being saved"**. Use **Export List** regularly in that case.
+- Editing a candidate's `Comment`, or rebuilding with or without photos, keeps an in-progress session. Adding, removing or reordering candidates, or changing bands, starts a fresh board.
+- Save `candidates.csv` as UTF-8 (in Excel: *CSV UTF-8 (Comma delimited)*) so accented names display correctly.
+- `generate.ps1` stops with a clear error if a required column is missing or a band/bucket ID is invalid or duplicated. IDs may contain only letters, digits, `-` and `_`.
+- The `defaultExpectedSpaces` / `maxExpectedSpaces` keys only apply when no `promotionBuckets` array is configured.
 
 ---
 
