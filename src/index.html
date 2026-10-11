@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <!--
-    Ladderater HTML template. Do not open this file directly: run generate.ps1, which inlines src/styles.css,
-    src/app.js and the candidate/config data into a single self-contained ladderater.html.
+    Ladderater HTML template. Do not open this file directly: run `npm run build` (or generate.ps1), which inlines
+    src/styles.css, src/app.js and the candidate/config data into a single self-contained ladderater.html, and
+    builds the public web version into dist/index.html.
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ladderater - Calibration Panel</title>
-    <!-- Premium Google Fonts (optional: falls back to system fonts when offline) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- No external fonts or requests: the app uses system fonts so it works offline and nothing leaves the browser -->
 
     <style>
 {{STYLES}}
@@ -63,7 +61,14 @@
                 <!-- Updated dynamically -->
             </div>
 
-            <div class="header-right" style="display: flex; gap: 8px;">
+            <div class="header-right" id="header-right" style="display: flex; gap: 8px;">
+                <details class="file-menu" id="file-menu">
+                    <summary class="btn btn-export" id="btn-file-menu" title="Save, export and data options">File &#9662;</summary>
+                    <div class="file-menu-items" id="file-menu-items">
+                        <button class="file-menu-item" id="btn-export-json" onclick="exportBoardJson()" title="Download the whole board (data, config and rankings) as JSON, to re-import later">Save board (.json)</button>
+                        <button class="file-menu-item" id="btn-export-csv" onclick="exportBoardCsv()" title="Download rankings as a CSV file">Export rankings (.csv)</button>
+                    </div>
+                </details>
                 <button class="btn btn-export" id="btn-export-list" onclick="exportToClipboard()" title="Copy ordered list to clipboard">
                     <!-- Inline Clipboard SVG -->
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -112,13 +117,15 @@
         </div>
     </div>
 
+    <!-- web:startup -->
     <script>
-        // Data injected by generate.ps1
+        // Data injected by the build (build.mjs / generate.ps1)
         const INITIAL_CANDIDATES = {{CANDIDATES_JSON}};
         const CONFIG = {{CONFIG_JSON}};
     </script>
     <script>
 {{APP_JS}}
     </script>
+    <!-- web:script -->
 </body>
 </html>

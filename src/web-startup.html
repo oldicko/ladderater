@@ -1,0 +1,56 @@
+    <style>
+        .startup-screen { min-height: 100vh; padding: 40px 20px; background: #f1f5f9; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; color: #0f172a; box-sizing: border-box; }
+        .startup-screen[hidden], .app-container[hidden] { display: none !important; }
+        .startup-card { max-width: 960px; margin: 0 auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
+        .startup-card h1 { font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; margin: 0 0 4px; font-size: 28px; letter-spacing: 0.02em; }
+        .startup-lead { margin: 0 0 20px; color: #475569; }
+        .privacy-note { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 10px; padding: 12px 16px; margin-bottom: 24px; font-size: 14px; }
+        .startup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 760px) { .startup-grid { grid-template-columns: 1fr; } }
+        .startup-grid h2 { font-size: 16px; margin: 0 0 6px; }
+        .startup-grid p { font-size: 13px; color: #64748b; margin: 0 0 8px; }
+        .startup-grid textarea { width: 100%; height: 260px; box-sizing: border-box; font-family: ui-monospace, Consolas, monospace; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; resize: vertical; }
+        .startup-file { display: inline-block; margin: 8px 8px 0 0; font-size: 13px; }
+        .startup-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; align-items: center; }
+        .startup-btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .startup-btn.primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .startup-btn:hover { filter: brightness(0.97); }
+        .startup-import { font-size: 14px; color: #334155; }
+        .startup-message { margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+        .startup-message.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .startup-message.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .startup-footer { margin-top: 24px; font-size: 12px; color: #94a3b8; }
+    </style>
+    <div class="startup-screen" id="startup-screen" hidden>
+        <div class="startup-card">
+            <h1>LADDERATER</h1>
+            <p class="startup-lead">Drag-and-drop calibration board for appraisal panels. Load your candidates to begin.</p>
+            <div class="privacy-note" id="privacy-note">
+                <strong>Your data never leaves your browser.</strong> Files are read and processed on this device only.
+                Nothing is uploaded, and the page makes no network requests with your data. Rankings are saved in this
+                browser's local storage; use <em>Save Board</em> to keep a copy or move it to another device.
+            </div>
+            <div class="startup-grid">
+                <section>
+                    <h2>1. Candidates (CSV)</h2>
+                    <p>Columns: <code>Name</code>, <code>Counsellor</code>, optional <code>Email</code> and <code>Comment</code>. Paste below or choose a file.</p>
+                    <textarea id="startup-csv" spellcheck="false" placeholder="Name,Counsellor,Email,Comment&#10;Jane Doe,John Smith,,Strong year"></textarea>
+                    <label class="startup-file">Choose CSV file <input type="file" id="startup-csv-file" accept=".csv,text/csv,text/plain"></label>
+                </section>
+                <section>
+                    <h2>2. Board configuration (JSON)</h2>
+                    <p>Title, performance bands and promotion buckets. Edit below or choose a <code>config.json</code>.</p>
+                    <textarea id="startup-config" spellcheck="false"></textarea>
+                    <label class="startup-file">Choose config file <input type="file" id="startup-config-file" accept=".json,application/json"></label>
+                    <button type="button" class="startup-btn" id="startup-reset-config">Reset to default config</button>
+                </section>
+            </div>
+            <div class="startup-actions">
+                <button type="button" class="startup-btn primary" id="startup-start">Start Board</button>
+                <button type="button" class="startup-btn" id="startup-sample">Load Sample Data</button>
+                <label class="startup-import">or import a saved board (.json): <input type="file" id="startup-import-file" accept=".json,application/json"></label>
+            </div>
+            <div class="startup-message" id="startup-message" hidden></div>
+            <div class="startup-footer">Ladderater &copy; 2026 Charles Dickinson. Licensed under the MIT License.</div>
+        </div>
+    </div>

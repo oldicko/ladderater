@@ -4,6 +4,35 @@ Ladderater is a lightweight, self-contained web application designed to support 
 
 To make sharing as easy as possible, the application is compiled into a **single, zero-dependency `.html` file** that works completely offline in any modern web browser.
 
+## Web version (GitHub Pages)
+
+Ladderater also runs as a public, static web app: open the site, paste or choose a candidates CSV, adjust the board
+configuration (or keep the default), and press **Start Board**. **Load Sample Data** fills in a fictional example.
+
+- **Your data never leaves your browser.** CSV and JSON files are parsed on your device; there is no server, no
+  analytics and no external fonts or scripts. Board progress is kept in the browser's `localStorage`.
+- **File menu** (top right): *Save board (.json)* downloads the data, config and rankings so you can re-import them
+  later or on another machine (use *import a saved board* on the start screen); *Export rankings (.csv)* downloads
+  every candidate with their band, rank and promotion bucket; *Download offline HTML* produces the classic
+  single-file version of the current board; *Change data…* returns to the start screen.
+- The Entra ID profile photo feature is not available in the web version (it needs an access token at build time).
+  Use `generate.ps1 -Token` locally if you need it.
+
+### Developing
+
+Requires Node.js 20+.
+
+```bash
+npm ci                 # installs Playwright (the only dev dependency)
+npm run build          # ladderater.html (from candidates.csv + config.json) and dist/index.html (web app)
+node scripts/serve.mjs # serve dist/ on http://localhost:4173/
+npm run test:unit      # band cascade + CSV/config parsing tests (node:test)
+npx playwright install chromium && npm run test:e2e   # browser smoke tests
+```
+
+`.github/workflows/pages.yml` (template currently in `deploy/pages.yml`; move it there to enable) runs the tests on every push and pull request, and deploys `dist/` to GitHub Pages on
+pushes to `main`. One-time setup: in the repository's **Settings -> Pages**, set **Source** to **GitHub Actions**.
+
 ---
 
 ## Features
@@ -20,8 +49,9 @@ To make sharing as easy as possible, the application is compiled into a **single
 - **Large "Under Discussion" Dashboard**: A prominent, vertical profile card with a large photo/avatar, candidate name, counselor, email address, and optional appraisal comments/notes, centered at the top of the sidebar to keep the spotlight on the candidate currently being calibrated.
 - **Counsellor Breakdown**: Real-time aggregation of how many candidates each counselor has placed in each band, helping the panel spot distribution imbalances.
 - **LocalStorage State Preservation**: Automatically saves the board's state in your browser cache so progress is never lost on page refresh. The state is keyed to your candidate database, resetting automatically only if the input candidate list changes.
-- **100% Offline-Capable**: Generates initials-based profile pictures with linear gradients on the fly, so no images are downloaded. Google Fonts load when a connection is available; offline, the app falls back to system fonts.
+- **100% Offline-Capable**: Generates initials-based profile pictures with linear gradients on the fly, so no images are downloaded. No external fonts or scripts are loaded; the app uses system fonts.
 - **Entra ID Profile Photos (Optional)**: Automatically fetches profile photos from Entra ID (Microsoft Graph) during compilation when an access token is provided, embedding them as base64 data URLs to maintain offline-first design.
+- **Save / Export Files**: Download the board as JSON (re-importable in the web version) or the rankings as CSV from the *File* menu.
 - **Export to Clipboard**: Copies the ordered list of candidates from the active view (Performance Board or Promotion Board) to the clipboard. The output is formatted with global 1-to-n indexing and includes counselor names, providing visual confirmation ("Copied!") on click.
 
 ---
@@ -30,7 +60,10 @@ To make sharing as easy as possible, the application is compiled into a **single
 
 - `candidates.csv`: The input database containing candidate names and their counsellors.
 - `config.json`: Board title, performance bands and promotion buckets.
-- `generate.ps1`: The PowerShell build script. It validates the inputs and inlines everything into one HTML file.
+- `scripts/build.mjs`: The Node build script (`npm run build`). It validates the inputs and inlines everything into one HTML file, and also builds the web version into `dist/`.
+- `generate.ps1`: The original PowerShell build script, kept for Windows users without Node and for the optional Entra ID photo download.
+- `src/web.js`, `src/web-startup.html`, `src/lib/data.js`: Web-version start screen and the shared CSV/config parsing used by both the browser and the Node build.
+- `tests/`: Unit tests (`tests/unit`) and Playwright smoke tests (`tests/e2e`).
 - `src/index.html`, `src/styles.css`, `src/app.js`: The application source. Edit these files, not the generated output.
 - `ladderater.html`: The generated standalone web application. Do not edit it by hand; it is overwritten on every build.
 
@@ -56,6 +89,8 @@ Bob Miller,Sarah Jenkins,bob.miller@company.com,"Consistent high deliverer; key 
 ```
 
 ### 2. Generate the Application
+With Node.js 20+ installed, run `npm run build:standalone` (any OS). Alternatively, on Windows without Node:
+
 Open a standard PowerShell window on a Windows 11 machine (no administrator permissions required) and run:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\generate.ps1
