@@ -31,7 +31,7 @@ npx playwright install chromium && npm run test:e2e   # browser smoke tests
 ```
 
 `.github/workflows/pages.yml` (template currently in `deploy/pages.yml`; move it there to enable) runs the tests on every push and pull request, and deploys `dist/` to GitHub Pages on
-pushes to `main`. One-time setup: in the repository's **Settings -> Pages**, set **Source** to **GitHub Actions**.
+pushes to `master`. One-time setup: in the repository's **Settings -> Pages**, set **Source** to **GitHub Actions**.
 
 ---
 
