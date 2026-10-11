@@ -2,7 +2,9 @@
 /*
  * Ladderater application logic.
  *
- * INITIAL_CANDIDATES and CONFIG are injected by generate.ps1 in a <script> block that runs before this file.
+ * INITIAL_CANDIDATES and CONFIG are injected by the build (build.mjs / generate.ps1) in a <script> block that runs
+ * before this file. In the web build they start as null and src/web.js fills them in from the startup screen, then
+ * calls init() itself (window.LADDERATER_DEFER_INIT is set so the automatic init below is skipped).
  * Candidate objects are immutable records shared by reference between the state lists; only candidate ids are
  * persisted to localStorage (see serialiseState) so that large embedded profile photos never hit the storage quota.
  */
@@ -178,6 +180,7 @@ function getPromoCapacity(bucketId) {
 
 // Initialize App
 window.addEventListener('DOMContentLoaded', () => {
+    if (window.LADDERATER_DEFER_INIT) return;
     init();
 });
 
@@ -227,6 +230,12 @@ function init() {
     if (storageGet(SIDEBAR_STORAGE_KEY) === 'true') {
         document.getElementById('sidebar-left').classList.add('collapsed');
     }
+
+    // Close the header File menu when clicking anywhere else
+    document.addEventListener('click', e => {
+        const menu = document.getElementById('file-menu');
+        if (menu && menu.open && !menu.contains(e.target)) menu.open = false;
+    });
 
     // Keep multiple tabs of the same board in sync instead of letting them silently overwrite each other
     window.addEventListener('storage', e => {
@@ -1899,6 +1908,80 @@ function buildExportText(view = currentView) {
         }
     });
     return text;
+}
+
+// Snapshot of the whole board (data + config + rankings) for the JSON export / import round trip
+function buildBoardSnapshot() {
+    return {
+        format: 'ladderater-board',
+        formatVersion: 1,
+        exportedAt: new Date().toISOString(),
+        config: CONFIG,
+        candidates: INITIAL_CANDIDATES,
+        board: JSON.parse(serialiseState(state)).state
+    };
+}
+
+// Replaces the current rankings with a saved state (candidate ids refer to positions in INITIAL_CANDIDATES)
+function applySavedState(saved) {
+    state = buildState(saved || {}, id => id);
+    saveState();
+    renderAll();
+}
+
+function csvCell(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+// CSV of every candidate with their performance band/rank and promotion bucket/rank
+function buildExportCsv() {
+    const perf = new Map();
+    let rank = 1;
+    bands.forEach(b => state.bands[b.id].forEach(c => perf.set(c.id, { band: b.name, rank: rank++ })));
+    const promo = new Map();
+    rank = 1;
+    promoBuckets.forEach(b => (state.promotionBands[b.id] || []).forEach(c => promo.set(c.id, { bucket: b.name, rank: rank++ })));
+    const rows = [['Name', 'Counsellor', 'Email', 'Performance Rank', 'Performance Band', 'Promotion Rank', 'Promotion Bucket']];
+    const ordered = [...allCandidates].sort((a, b) => {
+        const ra = perf.has(a.id) ? perf.get(a.id).rank : Infinity;
+        const rb = perf.has(b.id) ? perf.get(b.id).rank : Infinity;
+        return ra - rb || byName(a, b);
+    });
+    ordered.forEach(c => {
+        const p = perf.get(c.id);
+        const q = promo.get(c.id);
+        rows.push([c.name, c.counsellor, c.email || '', p ? p.rank : '', p ? p.band : 'Unranked', q ? q.rank : '', q ? q.bucket : '']);
+    });
+    return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+
+function downloadTextFile(filename, text, mimeType) {
+    const menu = document.getElementById('file-menu');
+    if (menu) menu.open = false;
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportFileBase() {
+    const slug = String(CONFIG.title || 'ladderater').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ladderater';
+    return `${slug}-${new Date().toISOString().slice(0, 10)}`;
+}
+
+function exportBoardJson() {
+    downloadTextFile(`${exportFileBase()}-board.json`, JSON.stringify(buildBoardSnapshot(), null, 2), 'application/json');
+}
+
+function exportBoardCsv() {
+    // BOM so Excel opens accented names correctly
+    downloadTextFile(`${exportFileBase()}-rankings.csv`, '\ufeff' + buildExportCsv(), 'text/csv;charset=utf-8');
 }
 
 function exportToClipboard() {

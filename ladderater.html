@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <!--
-    Ladderater HTML template. Do not open this file directly: run generate.ps1, which inlines src/styles.css,
-    src/app.js and the candidate/config data into a single self-contained ladderater.html.
+    Ladderater HTML template. Do not open this file directly: run `npm run build` (or generate.ps1), which inlines
+    src/styles.css, src/app.js and the candidate/config data into a single self-contained ladderater.html, and
+    builds the public web version into dist/index.html.
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ladderater - Calibration Panel</title>
-    <!-- Premium Google Fonts (optional: falls back to system fonts when offline) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- No external fonts or requests: the app uses system fonts so it works offline and nothing leaves the browser -->
 
     <style>
 :root {
@@ -989,6 +987,14 @@ h1, h2, h3, h4 {
     font-weight: 500;
 }
 
+/* File menu (save / export / data options) */
+.file-menu { position: relative; }
+.file-menu > summary { list-style: none; white-space: nowrap; }
+.file-menu > summary::-webkit-details-marker { display: none; }
+.file-menu-items { position: absolute; right: 0; top: calc(100% + 6px); z-index: 1000; min-width: 210px; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.12); padding: 6px; display: flex; flex-direction: column; }
+.file-menu-item { text-align: left; background: none; border: none; padding: 9px 12px; border-radius: 6px; font: inherit; font-size: 13px; color: #1e293b; cursor: pointer; white-space: nowrap; }
+.file-menu-item:hover { background: #f1f5f9; }
+
     </style>
 </head>
 <body>
@@ -1037,7 +1043,14 @@ h1, h2, h3, h4 {
                 <!-- Updated dynamically -->
             </div>
 
-            <div class="header-right" style="display: flex; gap: 8px;">
+            <div class="header-right" id="header-right" style="display: flex; gap: 8px;">
+                <details class="file-menu" id="file-menu">
+                    <summary class="btn btn-export" id="btn-file-menu" title="Save, export and data options">File &#9662;</summary>
+                    <div class="file-menu-items" id="file-menu-items">
+                        <button class="file-menu-item" id="btn-export-json" onclick="exportBoardJson()" title="Download the whole board (data, config and rankings) as JSON, to re-import later">Save board (.json)</button>
+                        <button class="file-menu-item" id="btn-export-csv" onclick="exportBoardCsv()" title="Download rankings as a CSV file">Export rankings (.csv)</button>
+                    </div>
+                </details>
                 <button class="btn btn-export" id="btn-export-list" onclick="exportToClipboard()" title="Copy ordered list to clipboard">
                     <!-- Inline Clipboard SVG -->
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -1085,9 +1098,8 @@ h1, h2, h3, h4 {
 
         </div>
     </div>
-
     <script>
-        // Data injected by generate.ps1
+        // Data injected by the build (build.mjs / generate.ps1)
         const INITIAL_CANDIDATES = [{"Name":"Alice Vance","Counsellor":"Marcus Vance","Email":"alice.vance@company.com","Comment":"Top candidate for Staff promotion; exceptional cross-team technical leadership.","Photo":null},{"Name":"Bob Miller","Counsellor":"Sarah Jenkins","Email":"bob.miller@company.com","Comment":"Consistent high deliverer; key contributor to backend performance improvements.","Photo":null},{"Name":"Catherine de Medici","Counsellor":"Thomas Wolsey","Email":"catherine.medici@company.com","Comment":"Exceeded goals on strategic procurement initiative; strong stakeholder influence.","Photo":null},{"Name":"David Hume","Counsellor":"Adam Smith","Email":"david.hume@company.com","Comment":"Solid core contributor; reliable delivery on analytics and reporting pipeline.","Photo":null},{"Name":"Elizabeth Bennet","Counsellor":"Jane Austen","Email":"elizabeth.bennet@company.com","Comment":"Outstanding communication and collaboration; drives team alignment.","Photo":null},{"Name":"Franklin Roosevelt","Counsellor":"Winston Churchill","Email":"franklin.roosevelt@company.com","Comment":"Strong crisis management and strategic vision across complex initiatives.","Photo":null},{"Name":"George Washington","Counsellor":"Alexander Hamilton","Email":"george.washington@company.com","Comment":"Exemplary operational leadership; established foundational standards.","Photo":null},{"Name":"Harriet Tubman","Counsellor":"Frederick Douglass","Email":"harriet.tubman@company.com","Comment":"Navigates difficult blockers effortlessly; acts as an unblocker for multiple squads.","Photo":null},{"Name":"Isaac Newton","Counsellor":"Robert Hooke","Email":"isaac.newton@company.com","Comment":"Deep technical expertise; pioneering solutions in algorithmic efficiency.","Photo":null},{"Name":"Jane Eyre","Counsellor":"Charlotte Bronte","Email":"jane.eyre@company.com","Comment":"Resilient under pressure; consistently maintains high code quality.","Photo":null},{"Name":"Katherine Johnson","Counsellor":"Dorothy Vaughan","Email":"katherine.johnson@company.com","Comment":"Pivotal contributions to mission-critical calculations and precision testing.","Photo":null},{"Name":"Leonardo da Vinci","Counsellor":"Marcus Vance","Email":"leonardo.davinci@company.com","Comment":"Versatile and inventive problem-solver across both UX and backend domains.","Photo":null},{"Name":"Marie Curie","Counsellor":"Sarah Jenkins","Email":"marie.curie@company.com","Comment":"Breakthrough contributions in core research; publishes high-impact work.","Photo":null},{"Name":"Nikola Tesla","Counsellor":"Thomas Wolsey","Email":"nikola.tesla@company.com","Comment":"Highly innovative engineer; created novel power efficiency architectures.","Photo":null},{"Name":"Oscar Wilde","Counsellor":"Adam Smith","Email":"oscar.wilde@company.com","Comment":"Creative approach to client engagement and product storytelling.","Photo":null}];
         const CONFIG = {
   "title": "LADDERATER",
@@ -1172,7 +1184,9 @@ h1, h2, h3, h4 {
 /*
  * Ladderater application logic.
  *
- * INITIAL_CANDIDATES and CONFIG are injected by generate.ps1 in a <script> block that runs before this file.
+ * INITIAL_CANDIDATES and CONFIG are injected by the build (build.mjs / generate.ps1) in a <script> block that runs
+ * before this file. In the web build they start as null and src/web.js fills them in from the startup screen, then
+ * calls init() itself (window.LADDERATER_DEFER_INIT is set so the automatic init below is skipped).
  * Candidate objects are immutable records shared by reference between the state lists; only candidate ids are
  * persisted to localStorage (see serialiseState) so that large embedded profile photos never hit the storage quota.
  */
@@ -1348,6 +1362,7 @@ function getPromoCapacity(bucketId) {
 
 // Initialize App
 window.addEventListener('DOMContentLoaded', () => {
+    if (window.LADDERATER_DEFER_INIT) return;
     init();
 });
 
@@ -1397,6 +1412,12 @@ function init() {
     if (storageGet(SIDEBAR_STORAGE_KEY) === 'true') {
         document.getElementById('sidebar-left').classList.add('collapsed');
     }
+
+    // Close the header File menu when clicking anywhere else
+    document.addEventListener('click', e => {
+        const menu = document.getElementById('file-menu');
+        if (menu && menu.open && !menu.contains(e.target)) menu.open = false;
+    });
 
     // Keep multiple tabs of the same board in sync instead of letting them silently overwrite each other
     window.addEventListener('storage', e => {
@@ -3069,6 +3090,80 @@ function buildExportText(view = currentView) {
         }
     });
     return text;
+}
+
+// Snapshot of the whole board (data + config + rankings) for the JSON export / import round trip
+function buildBoardSnapshot() {
+    return {
+        format: 'ladderater-board',
+        formatVersion: 1,
+        exportedAt: new Date().toISOString(),
+        config: CONFIG,
+        candidates: INITIAL_CANDIDATES,
+        board: JSON.parse(serialiseState(state)).state
+    };
+}
+
+// Replaces the current rankings with a saved state (candidate ids refer to positions in INITIAL_CANDIDATES)
+function applySavedState(saved) {
+    state = buildState(saved || {}, id => id);
+    saveState();
+    renderAll();
+}
+
+function csvCell(value) {
+    const text = value === null || value === undefined ? '' : String(value);
+    return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+// CSV of every candidate with their performance band/rank and promotion bucket/rank
+function buildExportCsv() {
+    const perf = new Map();
+    let rank = 1;
+    bands.forEach(b => state.bands[b.id].forEach(c => perf.set(c.id, { band: b.name, rank: rank++ })));
+    const promo = new Map();
+    rank = 1;
+    promoBuckets.forEach(b => (state.promotionBands[b.id] || []).forEach(c => promo.set(c.id, { bucket: b.name, rank: rank++ })));
+    const rows = [['Name', 'Counsellor', 'Email', 'Performance Rank', 'Performance Band', 'Promotion Rank', 'Promotion Bucket']];
+    const ordered = [...allCandidates].sort((a, b) => {
+        const ra = perf.has(a.id) ? perf.get(a.id).rank : Infinity;
+        const rb = perf.has(b.id) ? perf.get(b.id).rank : Infinity;
+        return ra - rb || byName(a, b);
+    });
+    ordered.forEach(c => {
+        const p = perf.get(c.id);
+        const q = promo.get(c.id);
+        rows.push([c.name, c.counsellor, c.email || '', p ? p.rank : '', p ? p.band : 'Unranked', q ? q.rank : '', q ? q.bucket : '']);
+    });
+    return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
+
+function downloadTextFile(filename, text, mimeType) {
+    const menu = document.getElementById('file-menu');
+    if (menu) menu.open = false;
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportFileBase() {
+    const slug = String(CONFIG.title || 'ladderater').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'ladderater';
+    return `${slug}-${new Date().toISOString().slice(0, 10)}`;
+}
+
+function exportBoardJson() {
+    downloadTextFile(`${exportFileBase()}-board.json`, JSON.stringify(buildBoardSnapshot(), null, 2), 'application/json');
+}
+
+function exportBoardCsv() {
+    // BOM so Excel opens accented names correctly
+    downloadTextFile(`${exportFileBase()}-rankings.csv`, '\ufeff' + buildExportCsv(), 'text/csv;charset=utf-8');
 }
 
 function exportToClipboard() {
